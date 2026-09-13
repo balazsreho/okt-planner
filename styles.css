@@ -640,7 +640,7 @@ h2 {
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 68dvh) minmax(280px, 32dvh);
+    grid-template-rows: minmax(0, 72dvh) minmax(240px, 28dvh);
   }
 
   .side-pane {
@@ -651,27 +651,43 @@ h2 {
   .elevation-dock {
     bottom: 10px;
     width: calc(100% - 20px);
-    min-height: 236px;
-    grid-template-columns: 160px minmax(0, 1fr);
+    min-height: 176px;
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+
+  .elevation-dock.empty {
+    min-height: 94px;
+  }
+
+  .elevation-dock.empty .elevation-chart-wrap {
+    display: none;
+  }
+
+  .leaflet-bottom.leaflet-right {
+    bottom: 190px;
   }
 }
 
 @media (max-width: 520px) {
   .app-shell {
-    grid-template-rows: minmax(0, 70dvh) minmax(260px, 30dvh);
+    grid-template-rows: minmax(0, 74dvh) minmax(220px, 26dvh);
   }
 
   .elevation-dock {
     bottom: 8px;
     width: calc(100% - 16px);
-    min-height: 260px;
+    min-height: 178px;
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 9px 10px 8px;
   }
 
+  .elevation-dock.empty {
+    min-height: 86px;
+  }
+
   .elevation-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
   }
 
@@ -680,11 +696,28 @@ h2 {
   }
 
   .elevation-stats strong {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   #elevationChart {
-    height: 142px;
+    height: 112px;
+  }
+
+  .elevation-header {
+    font-size: 11px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .leaflet-bottom.leaflet-right {
+    bottom: 188px;
+  }
+
+  .elevation-dock.empty ~ .leaflet-bottom.leaflet-right,
+  .map-pane:has(.elevation-dock.empty) .leaflet-bottom.leaflet-right {
+    bottom: 96px;
   }
 
   .panel-view {

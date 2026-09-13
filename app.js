@@ -780,6 +780,7 @@ function renderElevation(profileSegments) {
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
   if (!profileSegments.length) {
+    svg.closest(".elevation-dock")?.classList.add("empty");
     svg.innerHTML = `
       <line x1="44" y1="120" x2="872" y2="120" stroke="#d9e1e8" />
       <path d="M44 120 C 180 88, 260 112, 380 78 S 610 112, 760 70 S 835 92, 872 84" fill="none" stroke="#b9c8d6" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="8 8" />
@@ -790,6 +791,7 @@ function renderElevation(profileSegments) {
     return;
   }
 
+  svg.closest(".elevation-dock")?.classList.remove("empty");
   const pad = { top: 18, right: 28, bottom: 30, left: 44 };
   const plotWidth = width - pad.left - pad.right;
   const plotHeight = height - pad.top - pad.bottom;
