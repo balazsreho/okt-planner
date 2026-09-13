@@ -187,6 +187,7 @@ let geometrySource = "Overview geometry";
 let trailRenderer;
 
 document.addEventListener("DOMContentLoaded", init);
+window.addEventListener("load", registerServiceWorker);
 
 function init() {
   if (!window.L) {
@@ -224,6 +225,11 @@ function init() {
   updateUi();
   refreshMapLayout(false);
   if (useLiveOfficialGeometry) loadOfficialGeometry();
+}
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
 function parseSegments(csv) {

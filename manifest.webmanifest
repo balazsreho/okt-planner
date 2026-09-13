@@ -1,0 +1,25 @@
+{
+  "name": "OKT Planner",
+  "short_name": "OKT",
+  "description": "Mobile-friendly Orszagos Kektura route planner and stamp progress tracker.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#edf4f7",
+  "theme_color": "#1261b3",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
