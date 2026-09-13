@@ -62,13 +62,6 @@ button {
   background: #dbe7ef;
 }
 
-#map.simple-map {
-  background:
-    linear-gradient(135deg, rgba(31, 157, 102, 0.12) 25%, transparent 25%) 0 0 / 34px 34px,
-    linear-gradient(315deg, rgba(18, 97, 179, 0.08) 25%, transparent 25%) 0 0 / 42px 42px,
-    #edf4f7;
-}
-
 .leaflet-container {
   position: relative;
   overflow: hidden;
@@ -442,10 +435,6 @@ h2 {
   gap: 8px;
 }
 
-#gpxInput {
-  display: none;
-}
-
 .side-pane {
   z-index: 600;
   display: flex;
@@ -589,7 +578,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 14px;
+  margin: 14px 14px 0;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;

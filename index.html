@@ -54,6 +54,14 @@
           <button class="tab" id="progressTab" type="button">Progress</button>
         </nav>
 
+        <div class="progress-summary">
+          <div class="progress-ring" id="progressRing">0%</div>
+          <div>
+            <strong id="completedDistance">0.0 km completed</strong>
+            <span id="remainingDistance">1183.1 km remaining</span>
+          </div>
+        </div>
+
         <section class="panel-view active" id="planView">
           <div class="section-heading">
             <div>
@@ -61,10 +69,7 @@
               <h2>Choose a route</h2>
             </div>
             <div class="heading-actions">
-              <input id="gpxInput" type="file" accept=".gpx,application/gpx+xml,text/xml" />
-              <button class="text-button" id="mapDetailButton" type="button">Simple map</button>
-              <button class="text-button" id="importGpxButton" type="button">GPX</button>
-              <button class="text-button" id="selectNextButton" type="button">Next</button>
+              <button class="text-button" id="deselectButton" type="button">Deselect all</button>
             </div>
           </div>
           <div class="segment-list" id="segmentList"></div>
@@ -77,14 +82,6 @@
               <h2>Manual logbook</h2>
             </div>
             <button class="text-button" id="exportButton" type="button">Export</button>
-          </div>
-
-          <div class="progress-summary">
-            <div class="progress-ring" id="progressRing">0%</div>
-            <div>
-              <strong id="completedDistance">0.0 km completed</strong>
-              <span id="remainingDistance">1183.1 km remaining</span>
-            </div>
           </div>
 
           <div class="stamp-list" id="stampList"></div>

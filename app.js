@@ -182,7 +182,6 @@ const stampInputs = new Map();
 let baseRouteLayer;
 let stampLayerGroup;
 let tileLayer;
-let simpleMapMode = false;
 let map;
 let geometrySource = "Overview geometry";
 let trailRenderer;
@@ -217,6 +216,7 @@ function init() {
 
   assignOverviewGeometry();
   applyBundledRouteData();
+  state.selectedSegments = normalizeSelection(state.selectedSegments);
   if (state.stamped.length) syncCompletedSegmentsFromStamps();
   renderMap();
   renderLists();
@@ -379,6 +379,7 @@ function renderMap() {
       fillColor: "#1261b3",
       fillOpacity: 1,
       weight: 2,
+      bubblingMouseEvents: false,
     }).addTo(map);
 
     marker.bindPopup(`<strong>${stamp.name}</strong><br>${stamp.altitude} m`);
@@ -451,9 +452,9 @@ function renderLists() {
     const selectId = event.target.dataset.selectSegment;
     const completeId = event.target.dataset.completeSegment;
     if (selectId) {
-      setSegmentSelected(selectId, event.target.checked);
+      const didChange = setSegmentSelected(selectId, event.target.checked);
       saveState();
-      updateSummaryAndProfile();
+      if (didChange) updateSummaryAndProfile();
     }
     if (completeId) {
       setSegmentCompleted(completeId, event.target.checked);
@@ -473,27 +474,12 @@ function renderLists() {
 }
 
 function bindControls() {
-  document.querySelector("#selectNextButton").addEventListener("click", selectNextSegment);
-  document.querySelector("#mapDetailButton").addEventListener("click", toggleMapDetail);
-  document.querySelector("#importGpxButton").addEventListener("click", () => document.querySelector("#gpxInput").click());
-  document.querySelector("#gpxInput").addEventListener("change", handleGpxImport);
+  document.querySelector("#deselectButton").addEventListener("click", deselectAllSegments);
   document.querySelector("#exportButton").addEventListener("click", exportProgress);
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan"));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   window.addEventListener("load", () => refreshMapLayout(false));
   window.addEventListener("resize", () => refreshMapLayout(false));
-}
-
-function toggleMapDetail() {
-  simpleMapMode = !simpleMapMode;
-  document.querySelector("#mapDetailButton").textContent = simpleMapMode ? "Detailed map" : "Simple map";
-  document.querySelector("#map").classList.toggle("simple-map", simpleMapMode);
-
-  if (simpleMapMode && map.hasLayer(tileLayer)) {
-    map.removeLayer(tileLayer);
-  } else if (!simpleMapMode && !map.hasLayer(tileLayer)) {
-    tileLayer.addTo(map);
-  }
 }
 
 async function loadOfficialGeometry() {
@@ -512,118 +498,6 @@ async function loadOfficialGeometry() {
     geometrySource = "Overview geometry";
     document.querySelector("#profileMeta").textContent = `Stats ${oktDataVersion} · offline geometry`;
   }
-}
-
-async function handleGpxImport(event) {
-  const [file] = event.target.files;
-  if (!file) return;
-
-  const button = document.querySelector("#importGpxButton");
-  const previousLabel = button.textContent;
-  button.textContent = "Loading";
-  button.disabled = true;
-
-  try {
-    const text = await file.text();
-    const gpx = parseGpx(text);
-    const track = parseGpxTrack(gpx);
-    if (track.length < 2) throw new Error("No GPX track points found");
-    applyGpxTrack(track);
-    applyGpxWaypoints(parseGpxWaypoints(gpx));
-    geometrySource = "Imported GPX";
-    updateUi();
-    refreshMapLayout(true);
-  } catch (error) {
-    alert(`Could not read GPX: ${error.message}`);
-  } finally {
-    button.textContent = previousLabel;
-    button.disabled = false;
-    event.target.value = "";
-  }
-}
-
-function parseGpx(text) {
-  const xml = new DOMParser().parseFromString(text, "application/xml");
-  if (xml.querySelector("parsererror")) throw new Error("The GPX file is not valid XML");
-  return xml;
-}
-
-function parseGpxTrack(xml) {
-  return Array.from(xml.querySelectorAll("trkpt, rtept"))
-    .map((point) => ({
-      lat: Number(point.getAttribute("lat")),
-      lng: Number(point.getAttribute("lon")),
-      ele: Number(point.querySelector("ele")?.textContent),
-    }))
-    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
-}
-
-function parseGpxWaypoints(xml) {
-  return Array.from(xml.querySelectorAll("wpt"))
-    .map((point) => ({
-      name: point.querySelector("name")?.textContent?.trim() || "",
-      lat: Number(point.getAttribute("lat")),
-      lng: Number(point.getAttribute("lon")),
-      ele: Number(point.querySelector("ele")?.textContent),
-    }))
-    .filter((point) => point.name && Number.isFinite(point.lat) && Number.isFinite(point.lng));
-}
-
-function applyGpxTrack(track) {
-  const trackDistances = buildTrackDistances(track);
-  const totalTrackMeters = trackDistances[trackDistances.length - 1];
-  const totalOfficialKm = sumSegments(segments).distance;
-  let officialCursorKm = 0;
-
-  segments.forEach((segment) => {
-    const fromMeters = (officialCursorKm / totalOfficialKm) * totalTrackMeters;
-    const toMeters = ((officialCursorKm + segment.distance) / totalOfficialKm) * totalTrackMeters;
-    const fromTrackPoint = pointAtDistance(track, trackDistances, fromMeters);
-    const toTrackPoint = pointAtDistance(track, trackDistances, toMeters);
-    const samples = sampleTrackSlice(track, trackDistances, fromMeters, toMeters, segment.distance);
-
-    segment.points = simplifyPoints(
-      samples.map((sample) => [sample.lat, sample.lng]),
-      42,
-    );
-    segment.elevationSamples = samples
-      .filter((sample) => Number.isFinite(sample.ele))
-      .map((sample) => ({ distance: sample.distance, altitude: sample.ele }));
-
-    if (segment.elevationSamples.length < 2) {
-      const from = getStampByName(segment.from);
-      const to = getStampByName(segment.to);
-      segment.elevationSamples = generateElevationSamples(segment, from.altitude, to.altitude);
-    }
-
-    updateStampFromTrack(segment.from, fromTrackPoint);
-    updateStampFromTrack(segment.to, toTrackPoint);
-    officialCursorKm += segment.distance;
-  });
-  syncBaseRouteLayer();
-  refreshHighlightedLayers();
-}
-
-function updateStampFromTrack(name, point) {
-  const stamp = getStampByName(name);
-  if (!stamp) return;
-  stamp.lat = point.lat;
-  stamp.lng = point.lng;
-  if (Number.isFinite(point.ele)) stamp.altitude = Math.round(point.ele);
-  stampMarkers.get(stamp.id)?.setLatLng([stamp.lat, stamp.lng]);
-  stampMarkers.get(stamp.id)?.bindPopup(`<strong>${stamp.name}</strong><br>${stamp.altitude} m`);
-}
-
-function applyGpxWaypoints(waypoints) {
-  stamps.forEach((stamp) => {
-    const waypoint = waypoints.find((point) => normalizeText(point.name) === normalizeText(stamp.name));
-    if (!waypoint) return;
-    stamp.lat = waypoint.lat;
-    stamp.lng = waypoint.lng;
-    if (Number.isFinite(waypoint.ele)) stamp.altitude = Math.round(waypoint.ele);
-    stampMarkers.get(stamp.id)?.setLatLng([stamp.lat, stamp.lng]);
-    stampMarkers.get(stamp.id)?.bindPopup(`<strong>${stamp.name}</strong><br>${stamp.altitude} m`);
-  });
 }
 
 function applyOfficialRoutes(geojson) {
@@ -693,9 +567,16 @@ function updateSummaryAndProfile() {
 }
 
 function setSegmentSelected(segmentId, checked) {
-  setMembership(state.selectedSegments, segmentId, checked);
-  updateSegmentCardUi(segmentId);
-  refreshHighlightedLayer(segmentId);
+  const before = new Set(state.selectedSegments);
+  const nextSelection = getContiguousSelection(segmentId, checked);
+  if (!nextSelection) {
+    updateSegmentCardUi(segmentId);
+    return false;
+  }
+
+  state.selectedSegments = nextSelection;
+  updateChangedSelectedSegments(before, new Set(state.selectedSegments));
+  return true;
 }
 
 function setSegmentCompleted(segmentId, checked) {
@@ -720,6 +601,84 @@ function updateStampUi(stampId, stampedIds = new Set(state.stamped)) {
   stampMarkers.get(stampId)?.setStyle({
     fillColor: stampedIds.has(stampId) ? "#1f9d66" : "#1261b3",
   });
+}
+
+function getContiguousSelection(segmentId, checked) {
+  const selectedIndexes = state.selectedSegments
+    .map((id) => segmentById.get(id)?.number - 1)
+    .filter((index) => Number.isFinite(index))
+    .sort((a, b) => a - b);
+  const index = segmentById.get(segmentId)?.number - 1;
+  if (!Number.isFinite(index)) return null;
+
+  if (!selectedIndexes.length) return checked ? [segmentId] : [];
+
+  const min = selectedIndexes[0];
+  const max = selectedIndexes[selectedIndexes.length - 1];
+  if (checked) {
+    if (index >= min && index <= max) return state.selectedSegments;
+    if (index === min - 1) return segmentIdsBetween(index, max);
+    if (index === max + 1) return segmentIdsBetween(min, index);
+    return null;
+  }
+
+  if (index === min && index === max) return [];
+  if (index === min) return segmentIdsBetween(min + 1, max);
+  if (index === max) return segmentIdsBetween(min, max - 1);
+  return null;
+}
+
+function normalizeSelection(segmentIds) {
+  const indexes = segmentIds
+    .map((id) => segmentById.get(id)?.number - 1)
+    .filter((index) => Number.isFinite(index))
+    .sort((a, b) => a - b);
+  if (!indexes.length) return [];
+
+  let bestStart = indexes[0];
+  let bestEnd = indexes[0];
+  let currentStart = indexes[0];
+  let currentEnd = indexes[0];
+
+  for (let cursor = 1; cursor < indexes.length; cursor += 1) {
+    if (indexes[cursor] === currentEnd + 1) {
+      currentEnd = indexes[cursor];
+    } else {
+      if (currentEnd - currentStart > bestEnd - bestStart) {
+        bestStart = currentStart;
+        bestEnd = currentEnd;
+      }
+      currentStart = indexes[cursor];
+      currentEnd = indexes[cursor];
+    }
+  }
+
+  if (currentEnd - currentStart > bestEnd - bestStart) {
+    bestStart = currentStart;
+    bestEnd = currentEnd;
+  }
+
+  return segmentIdsBetween(bestStart, bestEnd);
+}
+
+function segmentIdsBetween(startIndex, endIndex) {
+  return segments.slice(startIndex, endIndex + 1).map((segment) => segment.id);
+}
+
+function updateChangedSelectedSegments(before, after) {
+  const changedIds = new Set([...before, ...after]);
+  changedIds.forEach((segmentId) => {
+    updateSegmentCardUi(segmentId);
+    refreshHighlightedLayer(segmentId);
+  });
+}
+
+function deselectAllSegments() {
+  const before = new Set(state.selectedSegments);
+  state.selectedSegments = [];
+  updateChangedSelectedSegments(before, new Set());
+  saveState();
+  updateSummaryAndProfile();
 }
 
 function syncCompletedSegmentsFromStamps() {
@@ -923,20 +882,9 @@ function generateElevationSamples(segment, startAlt, endAlt) {
   return samples;
 }
 
-function selectNextSegment() {
-  const lastSelected = state.selectedSegments[state.selectedSegments.length - 1];
-  const next = lastSelected
-    ? segments[segments.findIndex((segment) => segment.id === lastSelected) + 1]
-    : segments.find((segment) => !state.completedSegments.includes(segment.id));
-
-  if (!next) return;
-  if (!state.selectedSegments.includes(next.id)) state.selectedSegments.push(next.id);
-  saveState();
-  updateUi();
-}
-
 function toggleSegment(segmentId) {
-  setSegmentSelected(segmentId, !state.selectedSegments.includes(segmentId));
+  const didChange = setSegmentSelected(segmentId, !state.selectedSegments.includes(segmentId));
+  if (!didChange) return;
   saveState();
   updateSummaryAndProfile();
 }
@@ -951,7 +899,7 @@ function selectNearestSegment(event) {
       const start = map.latLngToLayerPoint(segment.points[index - 1]);
       const end = map.latLngToLayerPoint(segment.points[index]);
       const distance = pointToSegmentDistance(clickPoint, start, end);
-      if (distance < nearestDistance) {
+      if (distance < nearestDistance || (Math.abs(distance - nearestDistance) < 0.01 && nearestSegment && segment.number > nearestSegment.number)) {
         nearestDistance = distance;
         nearestSegment = segment;
       }
@@ -1078,75 +1026,6 @@ function extractLinePoints(geometry) {
   return [];
 }
 
-function buildTrackDistances(track) {
-  const distances = [0];
-  for (let index = 1; index < track.length; index += 1) {
-    distances.push(distances[index - 1] + haversineMeters(track[index - 1], track[index]));
-  }
-  return distances;
-}
-
-function sampleTrackSlice(track, distances, fromMeters, toMeters, officialKm) {
-  const sampleCount = Math.max(10, Math.min(80, Math.ceil(officialKm * 5)));
-  const samples = [];
-  for (let index = 0; index < sampleCount; index += 1) {
-    const t = index / (sampleCount - 1);
-    const point = pointAtDistance(track, distances, lerp(fromMeters, toMeters, t));
-    samples.push({
-      ...point,
-      distance: officialKm * t,
-    });
-  }
-  return samples;
-}
-
-function pointAtDistance(track, distances, targetMeters) {
-  let high = distances.length - 1;
-  let low = 0;
-
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2);
-    if (distances[mid] < targetMeters) low = mid + 1;
-    else high = mid;
-  }
-
-  const endIndex = Math.max(1, low);
-  const startIndex = endIndex - 1;
-  const startDistance = distances[startIndex];
-  const endDistance = distances[endIndex];
-  const t = endDistance === startDistance ? 0 : (targetMeters - startDistance) / (endDistance - startDistance);
-  const start = track[startIndex];
-  const end = track[endIndex];
-
-  return {
-    lat: lerp(start.lat, end.lat, t),
-    lng: lerp(start.lng, end.lng, t),
-    ele: Number.isFinite(start.ele) && Number.isFinite(end.ele) ? lerp(start.ele, end.ele, t) : NaN,
-  };
-}
-
-function simplifyPoints(points, maxPoints) {
-  if (points.length <= maxPoints) return points;
-  const simplified = [];
-  const step = (points.length - 1) / (maxPoints - 1);
-  for (let index = 0; index < maxPoints; index += 1) {
-    simplified.push(points[Math.round(index * step)]);
-  }
-  return simplified;
-}
-
-function haversineMeters(a, b) {
-  const earthRadius = 6371000;
-  const lat1 = toRadians(a.lat);
-  const lat2 = toRadians(b.lat);
-  const deltaLat = toRadians(b.lat - a.lat);
-  const deltaLng = toRadians(b.lng - a.lng);
-  const sinLat = Math.sin(deltaLat / 2);
-  const sinLng = Math.sin(deltaLng / 2);
-  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
-  return 2 * earthRadius * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
-
 function normalizeText(value) {
   return String(value)
     .normalize("NFD")
@@ -1160,8 +1039,4 @@ function slugify(value) {
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
-}
-
-function toRadians(value) {
-  return (value * Math.PI) / 180;
 }
