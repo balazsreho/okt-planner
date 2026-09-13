@@ -1,0 +1,704 @@
+:root {
+  color-scheme: light;
+  --blue: #1261b3;
+  --blue-dark: #083e7d;
+  --ink: #17212b;
+  --muted: #657386;
+  --line: #d9e1e8;
+  --paper: #f7f9fb;
+  --panel: #ffffff;
+  --done: #1f9d66;
+  --planned: #f0a202;
+  --shadow: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+.app-shell {
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 390px;
+  overflow: hidden;
+}
+
+.map-pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #dbe7ef;
+}
+
+#map.simple-map {
+  background:
+    linear-gradient(135deg, rgba(31, 157, 102, 0.12) 25%, transparent 25%) 0 0 / 34px 34px,
+    linear-gradient(315deg, rgba(18, 97, 179, 0.08) 25%, transparent 25%) 0 0 / 42px 42px,
+    #edf4f7;
+}
+
+.leaflet-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  outline: 0;
+  touch-action: pan-x pan-y;
+}
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.leaflet-tile {
+  width: 256px;
+  height: 256px;
+  filter: inherit;
+  visibility: inherit;
+}
+
+.leaflet-safari .leaflet-tile {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.leaflet-zoom-animated {
+  transform-origin: 0 0;
+}
+
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  display: block;
+}
+
+.leaflet-container img {
+  max-width: none;
+  max-height: none;
+}
+
+.leaflet-container .leaflet-overlay-pane svg {
+  max-width: none;
+}
+
+.leaflet-tile-pane {
+  z-index: 200;
+}
+
+.leaflet-overlay-pane {
+  z-index: 400;
+}
+
+.leaflet-shadow-pane {
+  z-index: 500;
+}
+
+.leaflet-marker-pane {
+  z-index: 600;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 650;
+}
+
+.leaflet-popup-pane {
+  z-index: 700;
+}
+
+.leaflet-map-pane canvas {
+  z-index: 100;
+}
+
+.leaflet-map-pane svg {
+  z-index: 200;
+}
+
+.leaflet-control {
+  position: relative;
+  z-index: 800;
+  pointer-events: auto;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  position: absolute;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.leaflet-top {
+  top: 0;
+}
+
+.leaflet-right {
+  right: 0;
+}
+
+.leaflet-bottom {
+  bottom: 0;
+}
+
+.leaflet-left {
+  left: 0;
+}
+
+.leaflet-control {
+  float: left;
+  clear: both;
+}
+
+.leaflet-right .leaflet-control {
+  float: right;
+}
+
+.leaflet-top .leaflet-control {
+  margin-top: 10px;
+}
+
+.leaflet-bottom .leaflet-control {
+  margin-bottom: 10px;
+}
+
+.leaflet-left .leaflet-control {
+  margin-left: 10px;
+}
+
+.leaflet-right .leaflet-control {
+  margin-right: 10px;
+}
+
+.leaflet-control-zoom a {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-bottom: 1px solid #ccc;
+  background: #fff;
+  color: #111;
+  font: 700 18px/30px Arial, sans-serif;
+  text-align: center;
+  text-decoration: none;
+}
+
+.leaflet-control-zoom a:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.leaflet-control-zoom a:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 4px 4px;
+}
+
+.leaflet-control-attribution {
+  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #333;
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: #1261b3;
+}
+
+.leaflet-popup {
+  position: absolute;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.leaflet-popup-content-wrapper {
+  padding: 1px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.leaflet-popup-content {
+  margin: 13px 18px;
+  min-width: 120px;
+  line-height: 1.35;
+}
+
+.leaflet-popup-tip-container {
+  position: absolute;
+  left: 50%;
+  width: 40px;
+  height: 20px;
+  margin-left: -20px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.leaflet-popup-tip {
+  width: 17px;
+  height: 17px;
+  margin: -10px auto 0;
+  padding: 1px;
+  background: #fff;
+  transform: rotate(45deg);
+  box-shadow: none;
+}
+
+.leaflet-tooltip {
+  position: absolute;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  white-space: nowrap;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.map-error {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: center;
+}
+
+.elevation-dock {
+  position: absolute;
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  margin: 0 0 3px;
+  color: var(--blue-dark);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h2 {
+  font-size: 19px;
+}
+
+.icon-button,
+.text-button,
+.tab {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.icon-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  line-height: 1;
+}
+
+.icon-button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.icon-button:hover,
+.text-button:hover,
+.tab:hover {
+  border-color: var(--blue);
+}
+
+.stat-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.elevation-stats strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elevation-dock {
+  left: 50%;
+  bottom: clamp(14px, 2vw, 24px);
+  display: grid;
+  width: min(980px, calc(100% - 32px));
+  min-height: 236px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+  transform: translateX(-50%);
+}
+
+.elevation-stats {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.elevation-stats > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfd;
+}
+
+.elevation-chart-wrap {
+  min-width: 0;
+}
+
+.elevation-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#profileTitle {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+#elevationChart {
+  display: block;
+  width: 100%;
+  height: 180px;
+}
+
+.heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#gpxInput {
+  display: none;
+}
+
+.side-pane {
+  z-index: 600;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: none;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  min-height: 42px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.tab.active {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.panel-view {
+  display: none;
+  height: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel-view.active {
+  display: block;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.text-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.segment-list,
+.stamp-list {
+  display: grid;
+  gap: 10px;
+}
+
+.segment-card,
+.stamp-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.segment-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  content-visibility: auto;
+  contain-intrinsic-size: 96px;
+}
+
+.segment-card.selected {
+  border-color: var(--planned);
+  box-shadow: inset 4px 0 0 var(--planned);
+}
+
+.segment-card.done {
+  border-color: rgba(31, 157, 102, 0.55);
+  box-shadow: inset 4px 0 0 var(--done);
+}
+
+.segment-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.segment-main strong {
+  display: block;
+  line-height: 1.25;
+}
+
+.segment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: #edf3f7;
+  color: #344253;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.toggle-row input {
+  width: 21px;
+  height: 21px;
+  accent-color: var(--done);
+}
+
+.progress-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfd;
+}
+
+.progress-ring {
+  display: grid;
+  width: 66px;
+  height: 66px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--done) var(--progress), #dfe8ee 0);
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.progress-summary span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stamp-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.stamp-card label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+}
+
+.stamp-card input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  accent-color: var(--done);
+}
+
+.stamp-card span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px;
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 68dvh) minmax(280px, 32dvh);
+  }
+
+  .side-pane {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .elevation-dock {
+    bottom: 10px;
+    width: calc(100% - 20px);
+    min-height: 236px;
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    grid-template-rows: minmax(0, 70dvh) minmax(260px, 30dvh);
+  }
+
+  .elevation-dock {
+    bottom: 8px;
+    width: calc(100% - 16px);
+    min-height: 260px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 9px 10px 8px;
+  }
+
+  .elevation-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .elevation-stats > div {
+    padding: 7px 8px;
+  }
+
+  .elevation-stats strong {
+    font-size: 15px;
+  }
+
+  #elevationChart {
+    height: 142px;
+  }
+
+  .panel-view {
+    padding: 12px;
+  }
+}
