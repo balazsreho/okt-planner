@@ -89,7 +89,10 @@ function buildOktData() {
   const stampDistances = new Map();
   let cumulativeDistance = 0;
   segments.forEach((segment) => {
-    if (!stampDistances.has(segment.fromId)) {
+    const existingFromStamp = stampDistances.get(segment.fromId);
+    if (existingFromStamp) {
+      existingFromStamp.nextDistance = segment.distance;
+    } else {
       stampDistances.set(segment.fromId, {
         id: segment.fromId,
         name: segment.from,
