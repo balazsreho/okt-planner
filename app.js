@@ -1246,7 +1246,7 @@ function formatMinutes(minutes) {
 }
 
 function formatStampDistance(stamp) {
-  return stamp.nextDistance > 0 ? `${stamp.nextDistance.toFixed(1)} km` : "Finish";
+  return `${Math.max(stamp.nextDistance, 0).toFixed(1)} km`;
 }
 
 function parseTime(time) {
