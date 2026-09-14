@@ -59,7 +59,7 @@
         <div class="sheet-grabber" id="sheetGrabber" aria-hidden="true">
           <span></span>
         </div>
-        <div class="version-chip" id="versionChip">v glass-1</div>
+        <div class="version-chip" id="versionChip">v glass-2</div>
         <nav class="tabs" aria-label="Views">
           <button class="tab active" id="planTab" type="button">Plan</button>
           <button class="tab" id="progressTab" type="button">Progress</button>
@@ -80,7 +80,9 @@
               <h2>Choose a route</h2>
             </div>
             <div class="heading-actions">
-              <button class="text-button" id="deselectButton" type="button">Deselect all</button>
+              <button class="text-button glyph-button" id="deselectButton" type="button" aria-label="Deselect all segments" title="Deselect all">
+                ×
+              </button>
             </div>
           </div>
           <div class="segment-list" id="segmentList"></div>

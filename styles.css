@@ -7,15 +7,15 @@
   --line: #d9e1e8;
   --paper: #f7f9fb;
   --panel: #ffffff;
-  --glass: rgba(255, 255, 255, 0.72);
-  --glass-strong: rgba(255, 255, 255, 0.86);
-  --glass-soft: rgba(247, 250, 253, 0.62);
-  --glass-border: rgba(255, 255, 255, 0.68);
-  --glass-line: rgba(135, 151, 170, 0.28);
+  --glass: rgba(255, 255, 255, 0.82);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --glass-soft: rgba(247, 250, 253, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --glass-line: rgba(102, 122, 145, 0.34);
   --done: #1f9d66;
   --planned: #f0a202;
-  --shadow: 0 18px 56px rgba(15, 34, 56, 0.18);
-  --shadow-soft: 0 8px 24px rgba(15, 34, 56, 0.12);
+  --shadow: 0 18px 56px rgba(15, 34, 56, 0.24);
+  --shadow-soft: 0 8px 24px rgba(15, 34, 56, 0.16);
   --sheet-height: 34dvh;
   --sheet-gap: 10px;
 }
@@ -335,8 +335,8 @@ button {
   z-index: 500;
   background: var(--glass-strong);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(22px) saturate(1.45);
-  -webkit-backdrop-filter: blur(22px) saturate(1.45);
+  backdrop-filter: blur(30px) saturate(1.7);
+  -webkit-backdrop-filter: blur(30px) saturate(1.7);
 }
 
 .eyebrow {
@@ -401,6 +401,7 @@ h2 {
   overflow: hidden;
   margin-top: 2px;
   font-size: 17px;
+  font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -432,7 +433,7 @@ h2 {
   padding: 9px 10px;
   border: 1px solid var(--glass-line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.52);
 }
 
 .elevation-chart-wrap {
@@ -474,10 +475,10 @@ h2 {
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid var(--glass-line);
-  background: var(--glass-strong);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(24px) saturate(1.45);
-  -webkit-backdrop-filter: blur(24px) saturate(1.45);
+  backdrop-filter: blur(32px) saturate(1.7);
+  -webkit-backdrop-filter: blur(32px) saturate(1.7);
 }
 
 .sheet-grabber {
@@ -550,6 +551,17 @@ h2 {
   white-space: nowrap;
 }
 
+.glyph-button {
+  display: grid;
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .segment-list,
 .stamp-list {
   display: grid;
@@ -560,7 +572,7 @@ h2 {
 .stamp-card {
   border: 1px solid var(--glass-line);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
 }
 
@@ -724,7 +736,7 @@ h2 {
     border-left: 0;
     border-top: 1px solid var(--glass-border);
     border-radius: 24px 24px 0 0;
-    background: rgba(250, 252, 254, 0.78);
+    background: rgba(250, 252, 254, 0.88);
     box-shadow: 0 -16px 46px rgba(20, 33, 48, 0.18);
     transition: height 180ms ease;
     will-change: height;
@@ -750,7 +762,7 @@ h2 {
     padding: 3px 7px;
     border: 1px solid var(--glass-line);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.48);
+    background: rgba(255, 255, 255, 0.72);
     font-size: 10px;
   }
 
@@ -764,7 +776,6 @@ h2 {
 
   .tabs {
     gap: 4px;
-    width: calc(100vw - 32px);
     margin: 0 16px 10px;
     padding: 4px;
     border-bottom: 0;
@@ -800,14 +811,13 @@ h2 {
   }
 
   .tab.active {
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.88);
     color: var(--blue-dark);
     box-shadow: 0 8px 22px rgba(20, 33, 48, 0.12);
   }
 
   .progress-summary {
     flex: 0 0 auto;
-    width: calc(100vw - 32px);
     margin: 0 16px 10px;
     padding: 10px 12px;
     border-radius: 18px;
@@ -820,7 +830,6 @@ h2 {
   }
 
   .panel-view {
-    width: 100vw;
     min-height: 0;
     padding: 10px 16px max(16px, env(safe-area-inset-bottom));
   }
@@ -834,7 +843,7 @@ h2 {
     padding: 9px 10px 8px;
     border-color: var(--glass-border);
     border-radius: 22px;
-    background: rgba(250, 252, 254, 0.78);
+    background: rgba(250, 252, 254, 0.9);
     box-shadow: 0 12px 38px rgba(20, 33, 48, 0.16);
     transition: bottom 180ms ease;
   }
@@ -854,7 +863,7 @@ h2 {
   }
 
   .elevation-stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.78fr) minmax(0, 0.9fr) minmax(110px, 1.45fr);
     gap: 0;
     border-bottom: 1px solid var(--glass-line);
     padding-bottom: 7px;
@@ -873,7 +882,11 @@ h2 {
   }
 
   .elevation-stats strong {
-    font-size: 15px;
+    font-size: 14px;
+  }
+
+  #selectedElevation {
+    font-size: 13px;
   }
 
   #elevationChart {
@@ -885,7 +898,7 @@ h2 {
   }
 
   .stat-label {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .leaflet-bottom {
@@ -917,13 +930,13 @@ h2 {
   }
 
   .tabs {
-    width: calc(100vw - 28px);
+    margin-right: 14px;
+    margin-left: 14px;
     padding-right: 14px;
     padding-left: 14px;
   }
 
   .progress-summary {
-    width: calc(100vw - 28px);
     margin-right: 14px;
     margin-left: 14px;
   }
