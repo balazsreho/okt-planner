@@ -1,4 +1,4 @@
-const CACHE_NAME = "okt-planner-v4";
+const CACHE_NAME = "okt-planner-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,8 +6,9 @@ const APP_SHELL = [
   "./app.js",
   "./okt-route-data.js",
   "./manifest.webmanifest",
-  "./icons/icon.svg",
-  "./icons/apple-touch-icon.svg",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/apple-touch-icon.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
