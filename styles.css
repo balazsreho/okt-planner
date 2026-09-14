@@ -7,9 +7,15 @@
   --line: #d9e1e8;
   --paper: #f7f9fb;
   --panel: #ffffff;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-strong: rgba(255, 255, 255, 0.86);
+  --glass-soft: rgba(247, 250, 253, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.68);
+  --glass-line: rgba(135, 151, 170, 0.28);
   --done: #1f9d66;
   --planned: #f0a202;
-  --shadow: none;
+  --shadow: 0 18px 56px rgba(15, 34, 56, 0.18);
+  --shadow-soft: 0 8px 24px rgba(15, 34, 56, 0.12);
   --sheet-height: 34dvh;
   --sheet-gap: 10px;
 }
@@ -32,6 +38,16 @@ body {
     sans-serif;
   color: var(--ink);
   background: var(--paper);
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(145deg, rgba(225, 240, 250, 0.72), rgba(246, 249, 251, 0.34) 46%, rgba(220, 235, 230, 0.46)),
+    #eef5f8;
+  content: "";
 }
 
 button,
@@ -214,8 +230,10 @@ button {
   display: block;
   width: 30px;
   height: 30px;
-  border-bottom: 1px solid #ccc;
-  background: #fff;
+  border-bottom: 1px solid var(--glass-line);
+  background: var(--glass-strong);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
   color: #111;
   font: 700 18px/30px Arial, sans-serif;
   text-align: center;
@@ -233,7 +251,10 @@ button {
 
 .leaflet-control-attribution {
   padding: 0 6px;
-  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: #333;
   font-size: 10px;
 }
@@ -250,9 +271,12 @@ button {
 
 .leaflet-popup-content-wrapper {
   padding: 1px;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: none;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass-strong);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(22px) saturate(1.55);
+  -webkit-backdrop-filter: blur(22px) saturate(1.55);
 }
 
 .leaflet-popup-content {
@@ -276,17 +300,19 @@ button {
   height: 17px;
   margin: -10px auto 0;
   padding: 1px;
-  background: #fff;
+  background: var(--glass-strong);
   transform: rotate(45deg);
-  box-shadow: none;
+  box-shadow: var(--shadow-soft);
 }
 
 .leaflet-tooltip {
   position: absolute;
   padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: #fff;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
   color: var(--ink);
   white-space: nowrap;
   box-shadow: none;
@@ -307,8 +333,10 @@ button {
 .elevation-dock {
   position: absolute;
   z-index: 500;
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--glass-strong);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(22px) saturate(1.45);
+  -webkit-backdrop-filter: blur(22px) saturate(1.45);
 }
 
 .eyebrow {
@@ -332,8 +360,8 @@ h2 {
 .icon-button,
 .text-button,
 .tab {
-  border: 1px solid var(--line);
-  background: var(--panel);
+  border: 1px solid var(--glass-line);
+  background: var(--glass-soft);
   color: var(--ink);
 }
 
@@ -359,7 +387,7 @@ h2 {
 .icon-button:hover,
 .text-button:hover,
 .tab:hover {
-  border-color: var(--blue);
+  border-color: rgba(18, 97, 179, 0.42);
 }
 
 .stat-label {
@@ -386,10 +414,10 @@ h2 {
   grid-template-columns: 210px minmax(0, 1fr);
   gap: 14px;
   padding: 14px 16px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: none;
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  background: var(--glass-strong);
+  box-shadow: var(--shadow);
   transform: translateX(-50%);
 }
 
@@ -402,9 +430,9 @@ h2 {
 .elevation-stats > div {
   min-width: 0;
   padding: 9px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fbfd;
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .elevation-chart-wrap {
@@ -445,9 +473,11 @@ h2 {
   height: 100%;
   flex-direction: column;
   overflow: hidden;
-  border-left: 1px solid var(--line);
-  background: var(--panel);
-  box-shadow: none;
+  border-left: 1px solid var(--glass-line);
+  background: var(--glass-strong);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(24px) saturate(1.45);
+  -webkit-backdrop-filter: blur(24px) saturate(1.45);
 }
 
 .sheet-grabber {
@@ -464,22 +494,24 @@ h2 {
 
 .tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 14px;
   border-bottom: 1px solid var(--line);
 }
 
 .tab {
+  min-width: 0;
   min-height: 42px;
-  border-radius: 8px;
+  border-radius: 14px;
   font-weight: 800;
 }
 
 .tab.active {
-  border-color: var(--blue);
-  background: var(--blue);
+  border-color: rgba(18, 97, 179, 0.5);
+  background: rgba(18, 97, 179, 0.92);
   color: #fff;
+  box-shadow: 0 8px 18px rgba(18, 97, 179, 0.18);
 }
 
 .panel-view {
@@ -505,11 +537,17 @@ h2 {
   margin-bottom: 14px;
 }
 
+.section-heading > div {
+  min-width: 0;
+}
+
 .text-button {
+  flex: 0 0 auto;
   min-height: 38px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: 14px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .segment-list,
@@ -520,9 +558,10 @@ h2 {
 
 .segment-card,
 .stamp-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--glass-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
 }
 
 .segment-card {
@@ -566,8 +605,8 @@ h2 {
   align-items: center;
   min-height: 26px;
   padding: 0 8px;
-  border-radius: 8px;
-  background: #edf3f7;
+  border-radius: 999px;
+  background: rgba(226, 236, 244, 0.72);
   color: #344253;
   font-size: 12px;
   font-weight: 700;
@@ -594,9 +633,10 @@ h2 {
   gap: 14px;
   margin: 14px 14px 0;
   padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fbfd;
+  border: 1px solid var(--glass-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
 }
 
 .progress-ring {
@@ -674,15 +714,18 @@ h2 {
 
   .side-pane {
     position: fixed;
-    right: 0;
+    right: auto;
     bottom: 0;
     left: 0;
+    width: 100vw;
+    max-width: 100vw;
     height: clamp(220px, var(--sheet-height), calc(100dvh - 56px));
     padding-bottom: env(safe-area-inset-bottom);
     border-left: 0;
-    border-top: 1px solid rgba(217, 225, 232, 0.95);
-    border-radius: 18px 18px 0 0;
-    box-shadow: 0 -8px 28px rgba(20, 33, 48, 0.14);
+    border-top: 1px solid var(--glass-border);
+    border-radius: 24px 24px 0 0;
+    background: rgba(250, 252, 254, 0.78);
+    box-shadow: 0 -16px 46px rgba(20, 33, 48, 0.18);
     transition: height 180ms ease;
     will-change: height;
   }
@@ -701,44 +744,73 @@ h2 {
 
   .version-chip {
     position: absolute;
-    top: 5px;
+    top: 7px;
     right: 16px;
     margin: 0;
+    padding: 3px 7px;
+    border: 1px solid var(--glass-line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.48);
     font-size: 10px;
   }
 
   .sheet-grabber span {
-    width: 42px;
+    width: 46px;
     height: 5px;
     border-radius: 999px;
-    background: #c8d2dc;
+    background: rgba(84, 101, 120, 0.28);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
   }
 
   .tabs {
-    gap: 6px;
-    padding: 0 16px 10px;
+    gap: 4px;
+    width: calc(100vw - 32px);
+    margin: 0 16px 10px;
+    padding: 4px;
     border-bottom: 0;
+    border: 1px solid var(--glass-line);
+    border-radius: 18px;
+    background: rgba(218, 229, 238, 0.46);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
+  }
+
+  .tab {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .section-heading {
+    align-items: flex-end;
+  }
+
+  .section-heading .text-button {
+    max-width: 44%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .tab {
     min-height: 40px;
     border: 0;
-    border-radius: 999px;
-    background: #f1f5f8;
+    border-radius: 14px;
+    background: transparent;
     color: var(--muted);
     font-size: 15px;
   }
 
   .tab.active {
-    background: #e5f0fb;
+    background: rgba(255, 255, 255, 0.72);
     color: var(--blue-dark);
+    box-shadow: 0 8px 22px rgba(20, 33, 48, 0.12);
   }
 
   .progress-summary {
     flex: 0 0 auto;
+    width: calc(100vw - 32px);
     margin: 0 16px 10px;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: 18px;
   }
 
   .progress-ring {
@@ -748,6 +820,7 @@ h2 {
   }
 
   .panel-view {
+    width: 100vw;
     min-height: 0;
     padding: 10px 16px max(16px, env(safe-area-inset-bottom));
   }
@@ -759,9 +832,17 @@ h2 {
     grid-template-columns: 1fr;
     gap: 7px;
     padding: 9px 10px 8px;
-    border-color: rgba(217, 225, 232, 0.88);
-    box-shadow: 0 6px 20px rgba(20, 33, 48, 0.12);
+    border-color: var(--glass-border);
+    border-radius: 22px;
+    background: rgba(250, 252, 254, 0.78);
+    box-shadow: 0 12px 38px rgba(20, 33, 48, 0.16);
     transition: bottom 180ms ease;
+  }
+
+  .side-pane.dragging,
+  .sheet-dragging .elevation-dock {
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
   }
 
   .sheet-dragging .elevation-dock {
@@ -775,14 +856,14 @@ h2 {
   .elevation-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--glass-line);
     padding-bottom: 7px;
   }
 
   .elevation-stats > div {
     padding: 0 7px;
     border: 0;
-    border-right: 1px solid var(--line);
+    border-right: 1px solid var(--glass-line);
     border-radius: 0;
     background: transparent;
   }
@@ -815,6 +896,18 @@ h2 {
   .leaflet-bottom.leaflet-right {
     right: 10px;
   }
+
+  .leaflet-control-zoom {
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .leaflet-control-zoom a:first-child,
+  .leaflet-control-zoom a:last-child {
+    border-radius: 0;
+  }
 }
 
 @media (max-width: 520px) {
@@ -824,11 +917,13 @@ h2 {
   }
 
   .tabs {
+    width: calc(100vw - 28px);
     padding-right: 14px;
     padding-left: 14px;
   }
 
   .progress-summary {
+    width: calc(100vw - 28px);
     margin-right: 14px;
     margin-left: 14px;
   }
@@ -853,5 +948,34 @@ h2 {
 
   #elevationChart {
     height: 82px;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .side-pane,
+  .elevation-dock,
+  .leaflet-popup-content-wrapper,
+  .leaflet-tooltip,
+  .leaflet-control-zoom a,
+  .leaflet-control-attribution {
+    background: rgba(255, 255, 255, 0.94);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass: #ffffff;
+    --glass-strong: #ffffff;
+    --glass-soft: #f7f9fb;
+  }
+
+  .side-pane,
+  .elevation-dock,
+  .leaflet-popup-content-wrapper,
+  .leaflet-tooltip,
+  .leaflet-control-zoom a,
+  .leaflet-control-attribution {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
