@@ -2,6 +2,9 @@
   color-scheme: light;
   --blue: #1261b3;
   --blue-dark: #083e7d;
+  --trail: #1261b3;
+  --trail-dark: #083e7d;
+  --trail-rgb: 18, 97, 179;
   --ink: #17212b;
   --muted: #657386;
   --line: #d9e1e8;
@@ -260,7 +263,7 @@ button {
 }
 
 .leaflet-control-attribution a {
-  color: #1261b3;
+  color: var(--trail);
 }
 
 .leaflet-popup {
@@ -341,7 +344,7 @@ button {
 
 .eyebrow {
   margin: 0 0 3px;
-  color: var(--blue-dark);
+  color: var(--trail-dark);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
@@ -387,7 +390,7 @@ h2 {
 .icon-button:hover,
 .text-button:hover,
 .tab:hover {
-  border-color: rgba(18, 97, 179, 0.42);
+  border-color: rgba(var(--trail-rgb), 0.42);
 }
 
 .stat-label {
@@ -521,9 +524,9 @@ h2 {
 }
 
 .trail-option.active {
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--blue-dark);
-  box-shadow: 0 7px 18px rgba(20, 33, 48, 0.12);
+  background: rgba(var(--trail-rgb), 0.15);
+  color: var(--trail-dark);
+  box-shadow: 0 7px 18px rgba(var(--trail-rgb), 0.14);
 }
 
 .tab {
@@ -534,10 +537,10 @@ h2 {
 }
 
 .tab.active {
-  border-color: rgba(18, 97, 179, 0.5);
-  background: rgba(18, 97, 179, 0.92);
+  border-color: rgba(var(--trail-rgb), 0.5);
+  background: rgba(var(--trail-rgb), 0.92);
   color: #fff;
-  box-shadow: 0 8px 18px rgba(18, 97, 179, 0.18);
+  box-shadow: 0 8px 18px rgba(var(--trail-rgb), 0.18);
 }
 
 .panel-view {
@@ -668,8 +671,8 @@ h2 {
 }
 
 .segment-card.selected {
-  border-color: var(--planned);
-  box-shadow: inset 4px 0 0 var(--planned);
+  border-color: rgba(var(--trail-rgb), 0.78);
+  box-shadow: inset 4px 0 0 var(--trail);
 }
 
 .segment-card.done {
@@ -880,9 +883,9 @@ h2 {
   }
 
   .tab.active {
-    background: rgba(255, 255, 255, 0.68);
-    color: var(--blue-dark);
-    box-shadow: 0 8px 22px rgba(20, 33, 48, 0.12);
+    background: rgba(var(--trail-rgb), 0.15);
+    color: var(--trail-dark);
+    box-shadow: 0 8px 22px rgba(var(--trail-rgb), 0.12);
   }
 
   .progress-summary {

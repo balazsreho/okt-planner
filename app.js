@@ -2,6 +2,12 @@ const trails = window.TRAIL_ROUTE_DATA || {};
 const defaultTrailId = trails.okt ? "okt" : Object.keys(trails)[0];
 const activeTrailStorageKey = "kekkor-active-trail";
 const stateStoragePrefix = "kekkor-planner-state";
+const trailPalettes = {
+  okt: { color: "#1261b3", dark: "#083e7d", rgb: "18, 97, 179" },
+  ak: { color: "#23864a", dark: "#145c33", rgb: "35, 134, 74" },
+  rpddk: { color: "#d6a100", dark: "#735600", rgb: "214, 161, 0" },
+};
+const fallbackPalette = trailPalettes.okt;
 const officialRouteUrl =
   "https://turistaterkepek.hu/server/rest/services/orszagos_kektura/kekturahu/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson";
 const officialStampUrl =
@@ -306,6 +312,7 @@ function loadTrail(trailId) {
   stampById = new Map(stamps.map((stamp) => [stamp.id, stamp]));
   geometrySource = activeTrail.geometrySource || "Bundled GPX";
   state = loadState(activeTrailId);
+  applyTrailTheme();
 }
 
 function switchTrail(trailId) {
@@ -336,6 +343,26 @@ function getStorageKey(trailId = activeTrailId) {
 
 function getActiveDataVersion() {
   return activeTrail?.version || "unknown";
+}
+
+function getTrailPalette() {
+  return trailPalettes[activeTrailId] || fallbackPalette;
+}
+
+function getTrailColor() {
+  return getTrailPalette().color;
+}
+
+function getTrailRgb() {
+  return getTrailPalette().rgb;
+}
+
+function applyTrailTheme() {
+  const palette = getTrailPalette();
+  document.documentElement.style.setProperty("--trail", palette.color);
+  document.documentElement.style.setProperty("--trail-dark", palette.dark);
+  document.documentElement.style.setProperty("--trail-rgb", palette.rgb);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", palette.color);
 }
 
 function assignOverviewGeometry() {
@@ -435,7 +462,7 @@ function renderMap() {
   baseRouteLayer = L.polyline(
     segments.map((segment) => segment.points),
     {
-      color: "#1261b3",
+      color: getTrailColor(),
       renderer: trailRenderer,
       weight: 4,
       opacity: 0.72,
@@ -455,7 +482,7 @@ function renderMap() {
     const marker = L.circleMarker([stamp.lat, stamp.lng], {
       radius: 6,
       color: "#ffffff",
-      fillColor: "#1261b3",
+      fillColor: getTrailColor(),
       fillOpacity: 1,
       weight: 2,
       bubblingMouseEvents: false,
@@ -766,7 +793,7 @@ function updateStampUi(stampId, stampedIds = new Set(state.stamped)) {
   const input = stampInputs.get(stampId);
   if (input) input.checked = stampedIds.has(stampId);
   stampMarkers.get(stampId)?.setStyle({
-    fillColor: stampedIds.has(stampId) ? "#1f9d66" : "#1261b3",
+    fillColor: stampedIds.has(stampId) ? "#1f9d66" : getTrailColor(),
   });
 }
 
@@ -911,7 +938,7 @@ function refreshHighlightedLayers(selectedIds = new Set(state.selectedSegments),
   wantedIds.forEach((segmentId) => {
     const segment = segmentById.get(segmentId);
     if (!segment) return;
-    upsertHighlightedLayer(segment, completedIds.has(segmentId) ? "#1f9d66" : "#f0a202");
+    upsertHighlightedLayer(segment, completedIds.has(segmentId) ? "#1f9d66" : getTrailColor());
   });
 }
 
@@ -930,7 +957,7 @@ function refreshHighlightedLayer(segmentId) {
 
   const segment = segmentById.get(segmentId);
   if (!segment) return;
-  upsertHighlightedLayer(segment, completed ? "#1f9d66" : "#f0a202");
+  upsertHighlightedLayer(segment, completed ? "#1f9d66" : getTrailColor());
 }
 
 function upsertHighlightedLayer(segment, color) {
@@ -997,14 +1024,14 @@ function renderElevation(profileSegments) {
     .filter((point) => point.stamp)
     .map(
       (point) =>
-        `<circle cx="${xScale(point.distance).toFixed(1)}" cy="${yScale(point.altitude).toFixed(1)}" r="3.6" fill="#fff" stroke="#1261b3" stroke-width="2"><title>${point.stamp} · ${Math.round(point.altitude)} m</title></circle>`,
+        `<circle cx="${xScale(point.distance).toFixed(1)}" cy="${yScale(point.altitude).toFixed(1)}" r="3.6" fill="#fff" stroke="${getTrailColor()}" stroke-width="2"><title>${point.stamp} · ${Math.round(point.altitude)} m</title></circle>`,
     )
     .join("");
 
   svg.innerHTML = `
     ${grid}
-    <path d="${fillD}" fill="rgba(18, 97, 179, 0.14)"></path>
-    <path d="${d}" fill="none" stroke="#1261b3" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="${fillD}" fill="rgba(${getTrailRgb()}, 0.14)"></path>
+    <path d="${d}" fill="none" stroke="${getTrailColor()}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path>
     ${stampsMarkup}
   `;
 
