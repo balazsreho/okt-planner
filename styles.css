@@ -729,7 +729,7 @@ h2 {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
-  background: conic-gradient(var(--done) var(--progress), #dfe8ee 0);
+  background: conic-gradient(var(--trail) var(--progress), #dfe8ee 0);
   color: var(--ink);
   font-weight: 900;
 }
