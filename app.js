@@ -883,7 +883,9 @@ function renderElevation(profileSegments) {
     ${stampsMarkup}
   `;
 
-  const title = `${profileSegments.length} selected segment${profileSegments.length > 1 ? "s" : ""}`;
+  const firstSegment = profileSegments[0];
+  const lastSegment = profileSegments[profileSegments.length - 1];
+  const title = `${firstSegment.from} - ${lastSegment.to}`;
   document.querySelector("#profileTitle").textContent = title;
   document.querySelector("#profileMeta").textContent = `${geometrySource} · stats ${oktDataVersion} · ${Math.round(minAlt)}-${Math.round(maxAlt)} m`;
 }
