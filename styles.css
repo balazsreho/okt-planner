@@ -445,7 +445,8 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.25;
 }
 
 #profileTitle {
@@ -917,7 +918,7 @@ h2 {
   }
 
   .elevation-header {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .stat-label {

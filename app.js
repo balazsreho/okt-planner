@@ -844,7 +844,7 @@ function renderElevation(profileSegments) {
     svg.innerHTML = `
       <line x1="44" y1="120" x2="872" y2="120" stroke="#d9e1e8" />
       <path d="M44 120 C 180 88, 260 112, 380 78 S 610 112, 760 70 S 835 92, 872 84" fill="none" stroke="#b9c8d6" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="8 8" />
-      <text x="450" y="88" text-anchor="middle" fill="#657386" font-size="16" font-weight="700">Select one or more segments</text>
+      <text x="450" y="88" text-anchor="middle" fill="#657386" font-size="18" font-weight="800">Select one or more segments</text>
     `;
     document.querySelector("#profileTitle").textContent = "No selected segment";
     document.querySelector("#profileMeta").textContent = `Stats ${oktDataVersion}`;
@@ -853,7 +853,7 @@ function renderElevation(profileSegments) {
 
   dock?.classList.remove("empty");
   mapPane?.classList.remove("elevation-empty");
-  const pad = { top: 18, right: 28, bottom: 30, left: 44 };
+  const pad = { top: 18, right: 28, bottom: 34, left: 50 };
   const plotWidth = width - pad.left - pad.right;
   const plotHeight = height - pad.top - pad.bottom;
   const profile = buildProfile(profileSegments);
@@ -898,13 +898,13 @@ function buildGridLines(minAlt, maxAlt, maxDistance, xScale, yScale, pad, plotWi
   for (let altitude = minAlt; altitude <= maxAlt; altitude += altitudeStep) {
     const y = yScale(altitude).toFixed(1);
     markup += `<line x1="${pad.left}" y1="${y}" x2="${pad.left + plotWidth}" y2="${y}" stroke="#d9e1e8" />`;
-    markup += `<text x="${pad.left - 8}" y="${Number(y) + 4}" text-anchor="end" fill="#657386" font-size="11">${altitude} m</text>`;
+    markup += `<text x="${pad.left - 9}" y="${Number(y) + 5}" text-anchor="end" fill="#657386" font-size="14" font-weight="700">${altitude} m</text>`;
   }
 
   for (let distance = 0; distance <= maxDistance + 0.001; distance += distanceStep) {
     const x = xScale(distance).toFixed(1);
     markup += `<line x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + plotHeight}" stroke="#eef3f7" />`;
-    markup += `<text x="${x}" y="${pad.top + plotHeight + 19}" text-anchor="middle" fill="#657386" font-size="11">${Math.round(distance)} km</text>`;
+    markup += `<text x="${x}" y="${pad.top + plotHeight + 24}" text-anchor="middle" fill="#657386" font-size="14" font-weight="700">${Math.round(distance)} km</text>`;
   }
 
   return markup;
