@@ -10,6 +10,8 @@
   --done: #1f9d66;
   --planned: #f0a202;
   --shadow: none;
+  --sheet-height: 34dvh;
+  --sheet-gap: 10px;
 }
 
 * {
@@ -448,6 +450,10 @@ h2 {
   box-shadow: none;
 }
 
+.sheet-grabber {
+  display: none;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -638,69 +644,143 @@ h2 {
 }
 
 @media (max-width: 860px) {
+  html,
+  body,
   .app-shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 72dvh) minmax(240px, 28dvh);
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-shell {
+    position: fixed;
+    inset: 0;
+    display: block;
+  }
+
+  .map-pane {
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
   }
 
   .side-pane {
-    border-top: 1px solid var(--line);
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: clamp(220px, var(--sheet-height), calc(100dvh - 56px));
+    padding-bottom: env(safe-area-inset-bottom);
     border-left: 0;
+    border-top: 1px solid rgba(217, 225, 232, 0.95);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 28px rgba(20, 33, 48, 0.14);
+    transition: height 180ms ease;
+    will-change: height;
+  }
+
+  .side-pane.dragging {
+    transition: none;
+  }
+
+  .sheet-grabber {
+    display: grid;
+    height: 22px;
+    flex: 0 0 auto;
+    place-items: center;
+    touch-action: none;
+  }
+
+  .sheet-grabber span {
+    width: 42px;
+    height: 5px;
+    border-radius: 999px;
+    background: #c8d2dc;
+  }
+
+  .tabs {
+    gap: 6px;
+    padding: 0 16px 10px;
+    border-bottom: 0;
+  }
+
+  .tab {
+    min-height: 40px;
+    border: 0;
+    border-radius: 999px;
+    background: #f1f5f8;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  .tab.active {
+    background: #e5f0fb;
+    color: var(--blue-dark);
+  }
+
+  .progress-summary {
+    flex: 0 0 auto;
+    margin: 0 16px 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+  }
+
+  .progress-ring {
+    width: 46px;
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .panel-view {
+    min-height: 0;
+    padding: 10px 16px max(16px, env(safe-area-inset-bottom));
   }
 
   .elevation-dock {
-    bottom: 10px;
+    bottom: calc(clamp(220px, var(--sheet-height), calc(100dvh - 56px)) + var(--sheet-gap));
     width: calc(100% - 20px);
-    min-height: 176px;
-    grid-template-columns: 150px minmax(0, 1fr);
-  }
-
-  .elevation-dock.empty {
-    min-height: 94px;
-  }
-
-  .elevation-dock.empty .elevation-chart-wrap {
-    display: none;
-  }
-
-  .leaflet-bottom.leaflet-right {
-    bottom: 190px;
-  }
-}
-
-@media (max-width: 520px) {
-  .app-shell {
-    grid-template-rows: minmax(0, 74dvh) minmax(220px, 26dvh);
-  }
-
-  .elevation-dock {
-    bottom: 8px;
-    width: calc(100% - 16px);
-    min-height: 178px;
+    min-height: 132px;
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 7px;
     padding: 9px 10px 8px;
+    border-color: rgba(217, 225, 232, 0.88);
+    box-shadow: 0 6px 20px rgba(20, 33, 48, 0.12);
+    transition: bottom 180ms ease;
+  }
+
+  .sheet-dragging .elevation-dock {
+    transition: none;
   }
 
   .elevation-dock.empty {
-    min-height: 86px;
+    display: none;
   }
 
   .elevation-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    gap: 0;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 7px;
   }
 
   .elevation-stats > div {
-    padding: 7px 8px;
+    padding: 0 7px;
+    border: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .elevation-stats > div:last-child {
+    border-right: 0;
   }
 
   .elevation-stats strong {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   #elevationChart {
-    height: 112px;
+    height: 92px;
   }
 
   .elevation-header {
@@ -711,16 +791,51 @@ h2 {
     font-size: 10px;
   }
 
-  .leaflet-bottom.leaflet-right {
-    bottom: 188px;
+  .leaflet-bottom {
+    top: max(12px, env(safe-area-inset-top));
+    bottom: auto;
   }
 
-  .elevation-dock.empty ~ .leaflet-bottom.leaflet-right,
-  .map-pane:has(.elevation-dock.empty) .leaflet-bottom.leaflet-right {
-    bottom: 96px;
+  .leaflet-bottom.leaflet-right {
+    right: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  :root {
+    --sheet-height: 30dvh;
+    --sheet-gap: 8px;
+  }
+
+  .tabs {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .progress-summary {
+    margin-right: 14px;
+    margin-left: 14px;
   }
 
   .panel-view {
-    padding: 12px;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .elevation-dock {
+    width: calc(100% - 16px);
+    min-height: 124px;
+  }
+
+  .elevation-stats > div {
+    padding: 0 5px;
+  }
+
+  .elevation-stats strong {
+    font-size: 14px;
+  }
+
+  #elevationChart {
+    height: 82px;
   }
 }

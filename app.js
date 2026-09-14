@@ -486,6 +486,75 @@ function bindControls() {
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   window.addEventListener("load", () => refreshMapLayout(false));
   window.addEventListener("resize", () => refreshMapLayout(false));
+  initBottomSheet();
+}
+
+function initBottomSheet() {
+  const sheet = document.querySelector(".side-pane");
+  const grabber = document.querySelector("#sheetGrabber");
+  if (!sheet || !grabber) return;
+
+  let startY = 0;
+  let startHeight = 0;
+  let didDrag = false;
+
+  const getSnapHeights = () => {
+    const viewport = window.innerHeight;
+    return [Math.round(viewport * 0.28), Math.round(viewport * 0.48), Math.round(viewport * 0.84)];
+  };
+
+  const setSheetHeight = (height) => {
+    const [minHeight, , maxHeight] = getSnapHeights();
+    const clamped = Math.max(minHeight, Math.min(maxHeight, height));
+    document.documentElement.style.setProperty("--sheet-height", `${clamped}px`);
+    return clamped;
+  };
+
+  const snapSheet = (height) => {
+    const snaps = getSnapHeights();
+    const closest = snaps.reduce((best, value) => (Math.abs(value - height) < Math.abs(best - height) ? value : best), snaps[0]);
+    setSheetHeight(closest);
+    refreshMapLayout(false);
+  };
+
+  const onPointerMove = (event) => {
+    if (!sheet.classList.contains("dragging")) return;
+    if (Math.abs(event.clientY - startY) > 4) didDrag = true;
+    setSheetHeight(startHeight + startY - event.clientY);
+  };
+
+  const onPointerUp = (event) => {
+    if (!sheet.classList.contains("dragging")) return;
+    sheet.classList.remove("dragging");
+    document.documentElement.classList.remove("sheet-dragging");
+    grabber.releasePointerCapture?.(event.pointerId);
+    snapSheet(sheet.getBoundingClientRect().height);
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+  };
+
+  grabber.addEventListener("pointerdown", (event) => {
+    if (!window.matchMedia("(max-width: 860px)").matches) return;
+    event.preventDefault();
+    startY = event.clientY;
+    startHeight = sheet.getBoundingClientRect().height;
+    didDrag = false;
+    sheet.classList.add("dragging");
+    document.documentElement.classList.add("sheet-dragging");
+    grabber.setPointerCapture?.(event.pointerId);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  });
+
+  grabber.addEventListener("click", () => {
+    if (!window.matchMedia("(max-width: 860px)").matches) return;
+    if (didDrag) return;
+    const snaps = getSnapHeights();
+    const current = sheet.getBoundingClientRect().height;
+    const next = current < snaps[1] - 8 ? snaps[1] : current < snaps[2] - 8 ? snaps[2] : snaps[0];
+    setSheetHeight(next);
+    refreshMapLayout(false);
+  });
 }
 
 async function loadOfficialGeometry() {
@@ -781,12 +850,15 @@ function upsertHighlightedLayer(segment, color) {
 
 function renderElevation(profileSegments) {
   const svg = document.querySelector("#elevationChart");
+  const dock = svg.closest(".elevation-dock");
+  const mapPane = document.querySelector(".map-pane");
   const width = 900;
   const height = 170;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
   if (!profileSegments.length) {
-    svg.closest(".elevation-dock")?.classList.add("empty");
+    dock?.classList.add("empty");
+    mapPane?.classList.add("elevation-empty");
     svg.innerHTML = `
       <line x1="44" y1="120" x2="872" y2="120" stroke="#d9e1e8" />
       <path d="M44 120 C 180 88, 260 112, 380 78 S 610 112, 760 70 S 835 92, 872 84" fill="none" stroke="#b9c8d6" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="8 8" />
@@ -797,7 +869,8 @@ function renderElevation(profileSegments) {
     return;
   }
 
-  svg.closest(".elevation-dock")?.classList.remove("empty");
+  dock?.classList.remove("empty");
+  mapPane?.classList.remove("elevation-empty");
   const pad = { top: 18, right: 28, bottom: 30, left: 44 };
   const plotWidth = width - pad.left - pad.right;
   const plotHeight = height - pad.top - pad.bottom;
