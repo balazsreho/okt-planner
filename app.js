@@ -177,8 +177,8 @@ const highlightedLayers = new Map();
 const stampMarkers = new Map();
 const segmentCards = new Map();
 const selectInputs = new Map();
-const completeInputs = new Map();
 const stampInputs = new Map();
+const sectionProgressLabels = new Map();
 let baseRouteLayer;
 let stampLayerGroup;
 let tileLayer;
@@ -396,6 +396,7 @@ function renderMap() {
 function renderLists() {
   const segmentList = document.querySelector("#segmentList");
   const stampList = document.querySelector("#stampList");
+  const sectionGroups = getSectionGroups();
 
   segmentList.innerHTML = segments
     .map(
@@ -414,58 +415,63 @@ function renderLists() {
             <span class="pill">+${segment.up} m</span>
             <span class="pill">-${segment.down} m</span>
           </div>
-          <label class="toggle-row">
-            <span>Completed route</span>
-            <input type="checkbox" data-complete-segment="${segment.id}" />
-          </label>
         </article>
       `,
     )
     .join("");
 
-  stampList.innerHTML = stamps
+  stampList.innerHTML = sectionGroups
     .map(
-      (stamp) => `
-        <article class="stamp-card">
-          <label>
-            <input type="checkbox" data-stamp="${stamp.id}" />
-            <strong>${stamp.name}</strong>
-          </label>
-          <span>${formatStampDistance(stamp)}</span>
-        </article>
+      (group) => `
+        <section class="progress-section" data-progress-section="${group.section}">
+          <header class="progress-section-header">
+            <div>
+              <span class="eyebrow">${group.section}</span>
+              <strong>${group.from} - ${group.to}</strong>
+            </div>
+            <span data-section-progress="${group.section}">${getSectionProgressLabel(group)}</span>
+          </header>
+          ${group.stamps
+            .map(
+              (stamp) => `
+                <article class="stamp-card">
+                  <label>
+                    <input type="checkbox" data-stamp="${stamp.id}" />
+                    <strong>${stamp.name}</strong>
+                  </label>
+                  <span>${formatStampDistance(stamp)}</span>
+                </article>
+              `,
+            )
+            .join("")}
+        </section>
       `,
     )
     .join("");
 
   segmentCards.clear();
   selectInputs.clear();
-  completeInputs.clear();
   stampInputs.clear();
+  sectionProgressLabels.clear();
   document.querySelectorAll("[data-segment-id]").forEach((card) => {
     segmentCards.set(card.dataset.segmentId, card);
   });
   document.querySelectorAll("[data-select-segment]").forEach((input) => {
     selectInputs.set(input.dataset.selectSegment, input);
   });
-  document.querySelectorAll("[data-complete-segment]").forEach((input) => {
-    completeInputs.set(input.dataset.completeSegment, input);
-  });
   document.querySelectorAll("[data-stamp]").forEach((input) => {
     stampInputs.set(input.dataset.stamp, input);
+  });
+  document.querySelectorAll("[data-section-progress]").forEach((label) => {
+    sectionProgressLabels.set(label.dataset.sectionProgress, label);
   });
 
   segmentList.addEventListener("change", (event) => {
     const selectId = event.target.dataset.selectSegment;
-    const completeId = event.target.dataset.completeSegment;
     if (selectId) {
       const didChange = setSegmentSelected(selectId, event.target.checked);
       saveState();
       if (didChange) updateSummaryAndProfile();
-    }
-    if (completeId) {
-      setSegmentCompleted(completeId, event.target.checked);
-      saveState();
-      updateUi();
     }
   });
 
@@ -615,6 +621,7 @@ function updateUi() {
 
   segments.forEach((segment) => updateSegmentCardUi(segment.id, selectedIds, completedIds));
   stamps.forEach((stamp) => updateStampUi(stamp.id, stampedIds));
+  updateSectionProgressLabels();
   refreshHighlightedLayers(selectedIds, completedIds);
   updateSummaryAndProfile();
 }
@@ -654,17 +661,8 @@ function setSegmentSelected(segmentId, checked) {
   return true;
 }
 
-function setSegmentCompleted(segmentId, checked) {
-  setMembership(state.completedSegments, segmentId, checked);
-  if (checked) addSegmentEndpointStamps(segmentId);
-  else removeUnusedSegmentEndpointStamps(segmentId);
-  updateSegmentCardUi(segmentId);
-  refreshHighlightedLayer(segmentId);
-}
-
 function updateSegmentCardUi(segmentId, selectedIds = new Set(state.selectedSegments), completedIds = new Set(state.completedSegments)) {
   selectInputs.get(segmentId).checked = selectedIds.has(segmentId);
-  completeInputs.get(segmentId).checked = completedIds.has(segmentId);
   const card = segmentCards.get(segmentId);
   card.classList.toggle("selected", selectedIds.has(segmentId));
   card.classList.toggle("done", completedIds.has(segmentId));
@@ -675,6 +673,13 @@ function updateStampUi(stampId, stampedIds = new Set(state.stamped)) {
   if (input) input.checked = stampedIds.has(stampId);
   stampMarkers.get(stampId)?.setStyle({
     fillColor: stampedIds.has(stampId) ? "#1f9d66" : "#1261b3",
+  });
+}
+
+function updateSectionProgressLabels() {
+  getSectionGroups().forEach((group) => {
+    const label = sectionProgressLabels.get(group.section);
+    if (label) label.textContent = getSectionProgressLabel(group);
   });
 }
 
@@ -761,29 +766,6 @@ function syncCompletedSegmentsFromStamps() {
   state.completedSegments = segments
     .filter((segment) => stampedIds.has(slugify(segment.from)) && stampedIds.has(slugify(segment.to)))
     .map((segment) => segment.id);
-}
-
-function addSegmentEndpointStamps(segmentId) {
-  const stampedIds = new Set(state.stamped);
-  const segment = segmentById.get(segmentId);
-  if (!segment) return;
-  stampedIds.add(slugify(segment.from));
-  stampedIds.add(slugify(segment.to));
-  state.stamped = Array.from(stampedIds);
-}
-
-function removeUnusedSegmentEndpointStamps(segmentId) {
-  const segment = segmentById.get(segmentId);
-  if (!segment) return;
-  const endpoints = [slugify(segment.from), slugify(segment.to)];
-  const usedByCompleted = new Set();
-  state.completedSegments.forEach((completedId) => {
-    const completedSegment = segmentById.get(completedId);
-    if (!completedSegment) return;
-    usedByCompleted.add(slugify(completedSegment.from));
-    usedByCompleted.add(slugify(completedSegment.to));
-  });
-  state.stamped = state.stamped.filter((stampId) => !endpoints.includes(stampId) || usedByCompleted.has(stampId));
 }
 
 function syncBaseRouteLayer() {
@@ -1051,6 +1033,42 @@ function refreshMapLayout(shouldFit) {
 
 function getStampByName(name) {
   return stamps.find((stamp) => stamp.name === name);
+}
+
+function getSectionGroups() {
+  const groups = [];
+
+  segments.forEach((segment, index) => {
+    let group = groups[groups.length - 1];
+    if (!group || group.section !== segment.section) {
+      group = {
+        section: segment.section,
+        from: segment.from,
+        to: segment.to,
+        segments: [],
+        stamps: [],
+      };
+      if (index === 0) group.stamps.push(getStampByName(segment.from));
+      groups.push(group);
+    }
+
+    group.to = segment.to;
+    group.segments.push(segment);
+    group.stamps.push(getStampByName(segment.to));
+  });
+
+  return groups.map((group) => ({
+    ...group,
+    stamps: group.stamps.filter(Boolean),
+  }));
+}
+
+function getSectionProgressLabel(group) {
+  const completedIds = new Set(state.completedSegments);
+  const total = sumSegments(group.segments);
+  const done = sumSegments(group.segments.filter((segment) => completedIds.has(segment.id)));
+  const percent = total.distance ? Math.round((done.distance / total.distance) * 100) : 0;
+  return `${percent}% · ${done.distance.toFixed(1)} / ${total.distance.toFixed(1)} km`;
 }
 
 function sumSegments(items) {
