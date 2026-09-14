@@ -1,7 +1,7 @@
 {
-  "name": "OKT Planner",
-  "short_name": "OKT",
-  "description": "Mobile-friendly Orszagos Kektura route planner and stamp progress tracker.",
+  "name": "Kékkör Planner",
+  "short_name": "Kékkör",
+  "description": "Mobile-friendly Kékkör route planner and stamp progress tracker.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
