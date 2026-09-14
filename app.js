@@ -179,6 +179,7 @@ const segmentCards = new Map();
 const selectInputs = new Map();
 const stampInputs = new Map();
 const sectionProgressLabels = new Map();
+const sectionToggles = new Map();
 let baseRouteLayer;
 let stampLayerGroup;
 let tileLayer;
@@ -429,7 +430,10 @@ function renderLists() {
               <span class="eyebrow">${group.section}</span>
               <strong>${group.from} - ${group.to}</strong>
             </div>
-            <span data-section-progress="${group.section}">${getSectionProgressLabel(group)}</span>
+            <label class="section-toggle" aria-label="Complete all segments in ${group.section}">
+              <input type="checkbox" data-section-toggle="${group.section}" />
+              <span data-section-progress="${group.section}">${getSectionProgressLabel(group)}</span>
+            </label>
           </header>
           ${group.stamps
             .map(
@@ -453,6 +457,7 @@ function renderLists() {
   selectInputs.clear();
   stampInputs.clear();
   sectionProgressLabels.clear();
+  sectionToggles.clear();
   document.querySelectorAll("[data-segment-id]").forEach((card) => {
     segmentCards.set(card.dataset.segmentId, card);
   });
@@ -465,6 +470,9 @@ function renderLists() {
   document.querySelectorAll("[data-section-progress]").forEach((label) => {
     sectionProgressLabels.set(label.dataset.sectionProgress, label);
   });
+  document.querySelectorAll("[data-section-toggle]").forEach((input) => {
+    sectionToggles.set(input.dataset.sectionToggle, input);
+  });
 
   segmentList.addEventListener("change", (event) => {
     const selectId = event.target.dataset.selectSegment;
@@ -476,6 +484,15 @@ function renderLists() {
   });
 
   stampList.addEventListener("change", (event) => {
+    const sectionId = event.target.dataset.sectionToggle;
+    if (sectionId) {
+      setSectionStamped(sectionId, event.target.checked);
+      syncCompletedSegmentsFromStamps();
+      saveState();
+      updateUi();
+      return;
+    }
+
     const stampId = event.target.dataset.stamp;
     if (!stampId) return;
     setMembership(state.stamped, stampId, event.target.checked);
@@ -487,7 +504,6 @@ function renderLists() {
 
 function bindControls() {
   document.querySelector("#deselectButton").addEventListener("click", deselectAllSegments);
-  document.querySelector("#exportButton").addEventListener("click", exportProgress);
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan"));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   window.addEventListener("load", () => refreshMapLayout(false));
@@ -680,6 +696,13 @@ function updateSectionProgressLabels() {
   getSectionGroups().forEach((group) => {
     const label = sectionProgressLabels.get(group.section);
     if (label) label.textContent = getSectionProgressLabel(group);
+    const toggle = sectionToggles.get(group.section);
+    if (toggle) {
+      const completedIds = new Set(state.completedSegments);
+      const completeCount = group.segments.filter((segment) => completedIds.has(segment.id)).length;
+      toggle.checked = completeCount === group.segments.length;
+      toggle.indeterminate = completeCount > 0 && completeCount < group.segments.length;
+    }
   });
 }
 
@@ -766,6 +789,30 @@ function syncCompletedSegmentsFromStamps() {
   state.completedSegments = segments
     .filter((segment) => stampedIds.has(slugify(segment.from)) && stampedIds.has(slugify(segment.to)))
     .map((segment) => segment.id);
+}
+
+function setSectionStamped(sectionId, checked) {
+  const group = getSectionGroups().find((item) => item.section === sectionId);
+  if (!group) return;
+  const stampedIds = new Set(state.stamped);
+  const groupSegmentIds = new Set(group.segments.map((segment) => segment.id));
+  const stampsNeededElsewhere = new Set();
+
+  if (!checked) {
+    state.completedSegments.forEach((segmentId) => {
+      if (groupSegmentIds.has(segmentId)) return;
+      const segment = segmentById.get(segmentId);
+      if (!segment) return;
+      stampsNeededElsewhere.add(slugify(segment.from));
+      stampsNeededElsewhere.add(slugify(segment.to));
+    });
+  }
+
+  group.stamps.forEach((stamp) => {
+    if (checked) stampedIds.add(stamp.id);
+    else if (!stampsNeededElsewhere.has(stamp.id)) stampedIds.delete(stamp.id);
+  });
+  state.stamped = Array.from(stampedIds);
 }
 
 function syncBaseRouteLayer() {
@@ -991,23 +1038,6 @@ function switchTab(tab) {
   refreshMapLayout(false);
 }
 
-function exportProgress() {
-  const completedNames = state.completedSegments.map((id) => {
-    const segment = segmentById.get(id);
-    return `${segment.from} - ${segment.to}`;
-  });
-  const stampedNames = state.stamped.map((id) => stamps.find((stamp) => stamp.id === id)?.name).filter(Boolean);
-  const text = [
-    "OKT planner export",
-    `Data version: ${oktDataVersion}`,
-    `Completed segments: ${completedNames.join(", ") || "none"}`,
-    `Stamped places: ${stampedNames.join(", ") || "none"}`,
-  ].join("\n");
-
-  navigator.clipboard?.writeText(text);
-  alert(text);
-}
-
 function fitMap() {
   const bounds = L.latLngBounds(segments.flatMap((segment) => segment.points));
   map.fitBounds(bounds, { padding: [36, 36] });
@@ -1050,7 +1080,7 @@ function getSectionGroups() {
         segments: [],
         stamps: [],
       };
-      if (index === 0) group.stamps.push(getStampByName(segment.from));
+      group.stamps.push(getStampByName(segment.from));
       groups.push(group);
     }
 

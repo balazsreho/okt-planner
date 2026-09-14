@@ -571,9 +571,9 @@ h2 {
 }
 
 .progress-section-header {
-  display: flex;
+  display: grid;
   align-items: flex-end;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr) minmax(118px, 0.72fr);
   gap: 10px;
   padding: 10px 2px 2px;
 }
@@ -590,13 +590,29 @@ h2 {
   white-space: nowrap;
 }
 
-.progress-section-header > span {
+.section-toggle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  text-align: right;
+}
+
+.section-toggle input {
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
+  accent-color: var(--done);
+}
+
+.section-toggle span {
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  line-height: 1.15;
 }
 
 .segment-card,
@@ -943,6 +959,24 @@ h2 {
   .progress-summary {
     margin-right: 14px;
     margin-left: 14px;
+  }
+
+  .progress-section-header {
+    grid-template-columns: minmax(0, 1fr) minmax(104px, 0.62fr);
+    gap: 8px;
+  }
+
+  .section-toggle {
+    gap: 6px;
+  }
+
+  .section-toggle input {
+    width: 19px;
+    height: 19px;
+  }
+
+  .section-toggle span {
+    font-size: 11px;
   }
 
   .panel-view {
