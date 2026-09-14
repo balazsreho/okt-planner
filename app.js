@@ -564,7 +564,9 @@ function renderLists() {
     selectInputs.set(input.dataset.selectSegment, input);
   });
   document.querySelectorAll("[data-stamp]").forEach((input) => {
-    stampInputs.set(input.dataset.stamp, input);
+    const inputs = stampInputs.get(input.dataset.stamp) || [];
+    inputs.push(input);
+    stampInputs.set(input.dataset.stamp, inputs);
   });
   document.querySelectorAll("[data-section-progress]").forEach((label) => {
     sectionProgressLabels.set(label.dataset.sectionProgress, label);
@@ -789,8 +791,10 @@ function updateSegmentCardUi(segmentId, selectedIds = new Set(state.selectedSegm
 }
 
 function updateStampUi(stampId, stampedIds = new Set(state.stamped)) {
-  const input = stampInputs.get(stampId);
-  if (input) input.checked = stampedIds.has(stampId);
+  const inputs = stampInputs.get(stampId) || [];
+  inputs.forEach((input) => {
+    input.checked = stampedIds.has(stampId);
+  });
   stampMarkers.get(stampId)?.setStyle({
     fillColor: stampedIds.has(stampId) ? "#1f9d66" : getTrailColor(),
   });
