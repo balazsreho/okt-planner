@@ -494,6 +494,38 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
+.trail-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 14px 14px 0;
+  padding: 4px;
+  border: 1px solid var(--glass-line);
+  border-radius: 16px;
+  background: rgba(218, 229, 238, 0.3);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
+}
+
+.trail-option {
+  min-width: 0;
+  min-height: 34px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trail-option.active {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--blue-dark);
+  box-shadow: 0 7px 18px rgba(20, 33, 48, 0.12);
+}
+
 .tab {
   min-width: 0;
   min-height: 42px;
@@ -573,7 +605,7 @@ h2 {
 .progress-section-header {
   display: grid;
   align-items: flex-end;
-  grid-template-columns: minmax(0, 1fr) minmax(118px, 0.72fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   padding: 10px 2px 2px;
 }
@@ -593,6 +625,7 @@ h2 {
 .section-toggle {
   display: flex;
   min-width: 0;
+  max-width: 170px;
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
@@ -609,10 +642,13 @@ h2 {
 .section-toggle span {
   min-width: 0;
   color: var(--muted);
-  font-size: 12px;
+  overflow: hidden;
+  font-size: 11px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .segment-card,
@@ -803,6 +839,19 @@ h2 {
     border-radius: 18px;
     background: rgba(218, 229, 238, 0.34);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
+  }
+
+  .trail-switcher {
+    flex: 0 0 auto;
+    margin: 0 16px 8px;
+    padding: 3px;
+    border-radius: 16px;
+  }
+
+  .trail-option {
+    min-height: 32px;
+    border-radius: 12px;
+    font-size: 12px;
   }
 
   .tab {

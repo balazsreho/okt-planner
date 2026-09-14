@@ -1,5 +1,7 @@
-const oktDataVersion = "2026-09-10";
-const storageKey = "okt-planner-state-v2";
+const trails = window.TRAIL_ROUTE_DATA || {};
+const defaultTrailId = trails.okt ? "okt" : Object.keys(trails)[0];
+const activeTrailStorageKey = "kekkor-active-trail";
+const stateStoragePrefix = "kekkor-planner-state";
 const officialRouteUrl =
   "https://turistaterkepek.hu/server/rest/services/orszagos_kektura/kekturahu/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson";
 const officialStampUrl =
@@ -168,11 +170,15 @@ const segmentCsv = `
 27,159,Bodó-rét,Hollóháza,4.4,30,340,1:10
 `;
 
-const segments = parseSegments(segmentCsv);
-const stamps = buildStamps(segments);
-const segmentById = new Map(segments.map((segment) => [segment.id, segment]));
-const stampById = new Map(stamps.map((stamp) => [stamp.id, stamp]));
-const state = loadState();
+let activeTrailId = localStorage.getItem(activeTrailStorageKey);
+if (!trails[activeTrailId]) activeTrailId = defaultTrailId;
+
+let activeTrail = trails[activeTrailId];
+let segments = [];
+let stamps = [];
+let segmentById = new Map();
+let stampById = new Map();
+let state = loadState(activeTrailId);
 const highlightedLayers = new Map();
 const stampMarkers = new Map();
 const segmentCards = new Map();
@@ -184,8 +190,9 @@ let baseRouteLayer;
 let stampLayerGroup;
 let tileLayer;
 let map;
-let geometrySource = "Overview geometry";
+let geometrySource = activeTrail?.geometrySource || "Bundled GPX";
 let trailRenderer;
+let isMapClickBound = false;
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -216,15 +223,14 @@ function init() {
   }).addTo(map);
   stampLayerGroup = L.layerGroup().addTo(map);
 
-  assignOverviewGeometry();
-  applyBundledRouteData();
+  loadTrail(activeTrailId);
   state.selectedSegments = normalizeSelection(state.selectedSegments);
   if (state.stamped.length) syncCompletedSegmentsFromStamps();
   renderMap();
   renderLists();
   bindControls();
   updateUi();
-  refreshMapLayout(false);
+  refreshMapLayout(true);
   if (useLiveOfficialGeometry) loadOfficialGeometry();
 }
 
@@ -245,6 +251,8 @@ function parseSegments(csv) {
         number: Number(number),
         from,
         to,
+        fromId: slugify(from),
+        toId: slugify(to),
         distance: Number(distance),
         up: Number(up),
         down: Number(down),
@@ -277,6 +285,57 @@ function buildStamps(rows) {
     lng: null,
     altitude: estimateAltitude(index, names.length),
   }));
+}
+
+function loadTrail(trailId) {
+  activeTrailId = trails[trailId] ? trailId : defaultTrailId;
+  activeTrail = trails[activeTrailId] || {
+    version: "unknown",
+    geometrySource: "Overview geometry",
+    segments: parseSegments(segmentCsv),
+    stamps: [],
+  };
+
+  segments = activeTrail.segments.map((segment) => ({
+    ...segment,
+    points: segment.points || [],
+    elevationSamples: segment.elevationSamples || [],
+  }));
+  stamps = activeTrail.stamps?.length ? activeTrail.stamps.map((stamp) => ({ ...stamp })) : buildStamps(segments);
+  segmentById = new Map(segments.map((segment) => [segment.id, segment]));
+  stampById = new Map(stamps.map((stamp) => [stamp.id, stamp]));
+  geometrySource = activeTrail.geometrySource || "Bundled GPX";
+  state = loadState(activeTrailId);
+}
+
+function switchTrail(trailId) {
+  if (!trails[trailId] || trailId === activeTrailId) return;
+  saveState();
+  localStorage.setItem(activeTrailStorageKey, trailId);
+  loadTrail(trailId);
+  state.selectedSegments = normalizeSelection(state.selectedSegments);
+  if (state.stamped.length) syncCompletedSegmentsFromStamps();
+  renderMap();
+  renderLists();
+  syncTrailButtons();
+  updateUi();
+  refreshMapLayout(true);
+}
+
+function syncTrailButtons() {
+  document.querySelectorAll("[data-trail]").forEach((button) => {
+    const isActive = button.dataset.trail === activeTrailId;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function getStorageKey(trailId = activeTrailId) {
+  return `${stateStoragePrefix}-${trailId}`;
+}
+
+function getActiveDataVersion() {
+  return activeTrail?.version || "unknown";
 }
 
 function assignOverviewGeometry() {
@@ -321,7 +380,7 @@ function assignOverviewGeometry() {
   });
 }
 
-function loadState() {
+function loadState(trailId = activeTrailId) {
   const fallback = {
     selectedSegments: [],
     completedSegments: [],
@@ -329,14 +388,14 @@ function loadState() {
   };
 
   try {
-    return { ...fallback, ...JSON.parse(localStorage.getItem(storageKey)) };
+    return { ...fallback, ...JSON.parse(localStorage.getItem(getStorageKey(trailId))) };
   } catch {
     return fallback;
   }
 }
 
 function saveState() {
-  localStorage.setItem(storageKey, JSON.stringify(state));
+  localStorage.setItem(getStorageKey(), JSON.stringify(state));
 }
 
 function applyBundledRouteData() {
@@ -364,6 +423,15 @@ function applyBundledRouteData() {
 }
 
 function renderMap() {
+  if (baseRouteLayer) {
+    baseRouteLayer.remove();
+    baseRouteLayer = null;
+  }
+  highlightedLayers.forEach((layer) => layer.remove());
+  highlightedLayers.clear();
+  stampLayerGroup?.clearLayers();
+  stampMarkers.clear();
+
   baseRouteLayer = L.polyline(
     segments.map((segment) => segment.points),
     {
@@ -377,9 +445,13 @@ function renderMap() {
     },
   ).addTo(map);
 
-  map.on("click", selectNearestSegment);
+  if (!isMapClickBound) {
+    map.on("click", selectNearestSegment);
+    isMapClickBound = true;
+  }
 
   stamps.forEach((stamp) => {
+    if (!Number.isFinite(stamp.lat) || !Number.isFinite(stamp.lng)) return;
     const marker = L.circleMarker([stamp.lat, stamp.lng], {
       radius: 6,
       color: "#ffffff",
@@ -387,7 +459,7 @@ function renderMap() {
       fillOpacity: 1,
       weight: 2,
       bubblingMouseEvents: false,
-    }).addTo(map);
+    }).addTo(stampLayerGroup);
 
     marker.bindPopup(`<strong>${stamp.name}</strong><br>${stamp.altitude} m`);
     stampMarkers.set(stamp.id, marker);
@@ -405,7 +477,7 @@ function renderLists() {
         <article class="segment-card" data-segment-id="${segment.id}">
           <div class="segment-main">
             <div>
-              <span class="eyebrow">${segment.section} · ${segment.number}/159</span>
+              <span class="eyebrow">${segment.section} · ${segment.number}/${segments.length}</span>
               <strong>${segment.from} - ${segment.to}</strong>
             </div>
             <input type="checkbox" aria-label="Select ${segment.from} to ${segment.to}" data-select-segment="${segment.id}" />
@@ -474,41 +546,47 @@ function renderLists() {
     sectionToggles.set(input.dataset.sectionToggle, input);
   });
 
-  segmentList.addEventListener("change", (event) => {
-    const selectId = event.target.dataset.selectSegment;
-    if (selectId) {
-      const didChange = setSegmentSelected(selectId, event.target.checked);
-      saveState();
-      if (didChange) updateSummaryAndProfile();
-    }
-  });
-
-  stampList.addEventListener("change", (event) => {
-    const sectionId = event.target.dataset.sectionToggle;
-    if (sectionId) {
-      setSectionStamped(sectionId, event.target.checked);
-      syncCompletedSegmentsFromStamps();
-      saveState();
-      updateUi();
-      return;
-    }
-
-    const stampId = event.target.dataset.stamp;
-    if (!stampId) return;
-    setMembership(state.stamped, stampId, event.target.checked);
-    syncCompletedSegmentsFromStamps();
-    saveState();
-    updateUi();
-  });
 }
 
 function bindControls() {
   document.querySelector("#deselectButton").addEventListener("click", deselectAllSegments);
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan"));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
+  document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
+  document.querySelector("#stampList").addEventListener("change", handleStampListChange);
+  document.querySelectorAll("[data-trail]").forEach((button) => {
+    button.addEventListener("click", () => switchTrail(button.dataset.trail));
+  });
   window.addEventListener("load", () => refreshMapLayout(false));
   window.addEventListener("resize", () => refreshMapLayout(false));
   initBottomSheet();
+  syncTrailButtons();
+}
+
+function handleSegmentListChange(event) {
+  const selectId = event.target.dataset.selectSegment;
+  if (!selectId) return;
+  const didChange = setSegmentSelected(selectId, event.target.checked);
+  saveState();
+  if (didChange) updateSummaryAndProfile();
+}
+
+function handleStampListChange(event) {
+  const sectionId = event.target.dataset.sectionToggle;
+  if (sectionId) {
+    setSectionStamped(sectionId, event.target.checked);
+    syncCompletedSegmentsFromStamps();
+    saveState();
+    updateUi();
+    return;
+  }
+
+  const stampId = event.target.dataset.stamp;
+  if (!stampId) return;
+  setMembership(state.stamped, stampId, event.target.checked);
+  syncCompletedSegmentsFromStamps();
+  saveState();
+  updateUi();
 }
 
 function initBottomSheet() {
@@ -593,7 +671,7 @@ async function loadOfficialGeometry() {
     refreshMapLayout(true);
   } catch (error) {
     geometrySource = "Overview geometry";
-    document.querySelector("#profileMeta").textContent = `Stats ${oktDataVersion} · offline geometry`;
+    document.querySelector("#profileMeta").textContent = `Stats ${getActiveDataVersion()} · offline geometry`;
   }
 }
 
@@ -787,7 +865,7 @@ function deselectAllSegments() {
 function syncCompletedSegmentsFromStamps() {
   const stampedIds = new Set(state.stamped);
   state.completedSegments = segments
-    .filter((segment) => stampedIds.has(slugify(segment.from)) && stampedIds.has(slugify(segment.to)))
+    .filter((segment) => stampedIds.has(getSegmentFromId(segment)) && stampedIds.has(getSegmentToId(segment)))
     .map((segment) => segment.id);
 }
 
@@ -803,8 +881,8 @@ function setSectionStamped(sectionId, checked) {
       if (groupSegmentIds.has(segmentId)) return;
       const segment = segmentById.get(segmentId);
       if (!segment) return;
-      stampsNeededElsewhere.add(slugify(segment.from));
-      stampsNeededElsewhere.add(slugify(segment.to));
+      stampsNeededElsewhere.add(getSegmentFromId(segment));
+      stampsNeededElsewhere.add(getSegmentToId(segment));
     });
   }
 
@@ -894,7 +972,7 @@ function renderElevation(profileSegments) {
       <text x="450" y="88" text-anchor="middle" fill="#657386" font-size="18" font-weight="800">Select one or more segments</text>
     `;
     document.querySelector("#profileTitle").textContent = "No selected segment";
-    document.querySelector("#profileMeta").textContent = `Stats ${oktDataVersion}`;
+    document.querySelector("#profileMeta").textContent = `Stats ${getActiveDataVersion()}`;
     return;
   }
 
@@ -934,7 +1012,7 @@ function renderElevation(profileSegments) {
   const lastSegment = profileSegments[profileSegments.length - 1];
   const title = `${firstSegment.from} - ${lastSegment.to}`;
   document.querySelector("#profileTitle").textContent = title;
-  document.querySelector("#profileMeta").textContent = `${geometrySource} · stats ${oktDataVersion} · ${Math.round(minAlt)}-${Math.round(maxAlt)} m`;
+  document.querySelector("#profileMeta").textContent = `${geometrySource} · stats ${getActiveDataVersion()} · ${Math.round(minAlt)}-${Math.round(maxAlt)} m`;
 }
 
 function buildGridLines(minAlt, maxAlt, maxDistance, xScale, yScale, pad, plotWidth, plotHeight) {
@@ -963,7 +1041,7 @@ function buildProfile(profileSegments) {
   profileSegments.forEach((segment, segmentIndex) => {
     const samples = segment.elevationSamples.length
       ? segment.elevationSamples
-      : generateElevationSamples(segment, getStampByName(segment.from).altitude, getStampByName(segment.to).altitude);
+      : generateElevationSamples(segment, getStampById(getSegmentFromId(segment)).altitude, getStampById(getSegmentToId(segment)).altitude);
     samples.forEach((sample, sampleIndex) => {
       if (segmentIndex > 0 && sampleIndex === 0) return;
       profile.push({
@@ -1067,6 +1145,18 @@ function getStampByName(name) {
   return stamps.find((stamp) => stamp.name === name);
 }
 
+function getStampById(stampId) {
+  return stampById.get(stampId) || stamps.find((stamp) => stamp.id === stampId) || stamps[0] || { altitude: 180 };
+}
+
+function getSegmentFromId(segment) {
+  return segment.fromId || slugify(segment.from);
+}
+
+function getSegmentToId(segment) {
+  return segment.toId || slugify(segment.to);
+}
+
 function getSectionGroups() {
   const groups = [];
 
@@ -1080,13 +1170,13 @@ function getSectionGroups() {
         segments: [],
         stamps: [],
       };
-      group.stamps.push(getStampByName(segment.from));
+      group.stamps.push(getStampById(getSegmentFromId(segment)));
       groups.push(group);
     }
 
     group.to = segment.to;
     group.segments.push(segment);
-    group.stamps.push(getStampByName(segment.to));
+    group.stamps.push(getStampById(getSegmentToId(segment)));
   });
 
   return groups.map((group) => ({
