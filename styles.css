@@ -454,6 +454,14 @@ h2 {
   display: none;
 }
 
+.version-chip {
+  align-self: flex-end;
+  margin: 8px 14px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -689,6 +697,14 @@ h2 {
     flex: 0 0 auto;
     place-items: center;
     touch-action: none;
+  }
+
+  .version-chip {
+    position: absolute;
+    top: 5px;
+    right: 16px;
+    margin: 0;
+    font-size: 10px;
   }
 
   .sheet-grabber span {
