@@ -648,7 +648,6 @@ h2 {
 .section-toggle {
   display: flex;
   min-width: 0;
-  max-width: 170px;
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
@@ -665,13 +664,11 @@ h2 {
 .section-toggle span {
   min-width: 0;
   color: var(--muted);
-  overflow: hidden;
   font-size: 11px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .segment-card,
@@ -1039,7 +1036,7 @@ h2 {
   }
 
   .progress-section-header {
-    grid-template-columns: minmax(0, 1fr) minmax(104px, 0.62fr);
+    grid-template-columns: minmax(0, 1fr) max-content;
     gap: 8px;
   }
 
