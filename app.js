@@ -602,7 +602,6 @@ function handleStampListChange(event) {
   const sectionId = event.target.dataset.sectionToggle;
   if (sectionId) {
     setSectionStamped(sectionId, event.target.checked);
-    syncCompletedSegmentsFromStamps();
     saveState();
     updateUi();
     return;
@@ -900,6 +899,7 @@ function setSectionStamped(sectionId, checked) {
   const group = getSectionGroups().find((item) => item.section === sectionId);
   if (!group) return;
   const stampedIds = new Set(state.stamped);
+  const completedIds = new Set(state.completedSegments);
   const groupSegmentIds = new Set(group.segments.map((segment) => segment.id));
   const stampsNeededElsewhere = new Set();
 
@@ -913,11 +913,19 @@ function setSectionStamped(sectionId, checked) {
     });
   }
 
+  group.segments.forEach((segment) => {
+    if (checked) completedIds.add(segment.id);
+    else completedIds.delete(segment.id);
+  });
+
   group.stamps.forEach((stamp) => {
     if (checked) stampedIds.add(stamp.id);
     else if (!stampsNeededElsewhere.has(stamp.id)) stampedIds.delete(stamp.id);
   });
   state.stamped = Array.from(stampedIds);
+  state.completedSegments = Array.from(completedIds).sort((a, b) => {
+    return (segmentById.get(a)?.number || 0) - (segmentById.get(b)?.number || 0);
+  });
 }
 
 function syncBaseRouteLayer() {

@@ -484,6 +484,12 @@ h2 {
   gap: 8px;
 }
 
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
 .side-pane {
   z-index: 600;
   display: flex;
