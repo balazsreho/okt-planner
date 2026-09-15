@@ -483,7 +483,7 @@ function renderMap() {
     isMapClickBound = true;
   }
 
-  stamps.forEach((stamp) => {
+  stamps.forEach((stamp, index) => {
     if (!Number.isFinite(stamp.lat) || !Number.isFinite(stamp.lng)) return;
     const marker = L.circleMarker([stamp.lat, stamp.lng], {
       radius: 6,
@@ -494,7 +494,7 @@ function renderMap() {
       bubblingMouseEvents: false,
     }).addTo(stampLayerGroup);
 
-    marker.bindPopup(`<strong>${stamp.name}</strong><br>${stamp.altitude} m`);
+    marker.bindPopup(() => getStampPopupContent(stamp, index), { maxWidth: 320 });
     stampMarkers.set(stamp.id, marker);
   });
 }
@@ -525,8 +525,6 @@ function renderLists() {
       `,
     )
     .join("");
-  renderSuggestionPlanner();
-
   stampList.innerHTML = sectionGroups
     .map(
       (group) => `
@@ -590,8 +588,7 @@ function bindControls() {
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
   document.querySelector("#directionToggle").addEventListener("click", toggleDirection);
-  document.querySelector("#suggestionStartSelect").addEventListener("change", renderSuggestionCards);
-  document.querySelector("#suggestionList").addEventListener("click", handleSuggestionClick);
+  document.addEventListener("click", handleSuggestionClick);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
   document.querySelectorAll("[data-trail]").forEach((button) => {
@@ -787,8 +784,6 @@ function updateSummaryAndProfile() {
     .querySelector(".elevation-header")
     .setAttribute("title", selected.length > 0 ? "Zoom to selected route" : "");
   syncDirectionToggle();
-  syncSuggestionStartFromSelection();
-  renderSuggestionCards();
 
   renderElevation(selected);
 }
@@ -915,57 +910,27 @@ function deselectAllSegments() {
   updateSummaryAndProfile();
 }
 
-function renderSuggestionPlanner() {
-  const select = document.querySelector("#suggestionStartSelect");
-  select.innerHTML = getOrderedStampOptions()
-    .map((stamp, index) => `<option value="${index}">${stamp.name}</option>`)
-    .join("");
-  syncSuggestionStartFromSelection();
-  renderSuggestionCards();
-}
-
-function syncSuggestionStartFromSelection() {
-  const select = document.querySelector("#suggestionStartSelect");
-  if (!select?.options.length || document.activeElement === select) return;
-  select.value = String(getSuggestedStartStampIndex());
-}
-
-function getSuggestedStartStampIndex() {
-  const selectedIndexes = state.selectedSegments
-    .map((id) => segmentById.get(id)?.number - 1)
-    .filter((index) => Number.isFinite(index))
-    .sort((a, b) => a - b);
-
-  if (selectedIndexes.length) {
-    return state.direction === "reverse"
-      ? Math.min(selectedIndexes[selectedIndexes.length - 1] + 1, segments.length)
-      : selectedIndexes[0];
-  }
-
-  const nextIncompleteIndex = segments.findIndex((segment) => !state.completedSegments.includes(segment.id));
-  if (nextIncompleteIndex === -1) return 0;
-  return state.direction === "reverse" ? Math.min(nextIncompleteIndex + 1, segments.length) : nextIncompleteIndex;
-}
-
-function renderSuggestionCards() {
-  const list = document.querySelector("#suggestionList");
-  const select = document.querySelector("#suggestionStartSelect");
-  if (!list || !select) return;
-
-  const startStampIndex = Number(select.value);
-  const suggestions = getDaySuggestions(startStampIndex);
+function getStampPopupContent(stamp, stampIndex) {
+  const suggestions = getDaySuggestions(stampIndex);
+  const title = escapeHtml(stamp.name);
+  const altitude = Number.isFinite(stamp.altitude) ? `${stamp.altitude} m` : "";
   if (!suggestions.length) {
-    list.innerHTML = '<p class="suggestion-empty">Pick a stamp with connected trail ahead.</p>';
-    return;
+    return `
+      <div class="stamp-popup">
+        <strong>${title}</strong>
+        <span>${altitude}</span>
+        <p class="suggestion-empty">No connected route in this direction.</p>
+      </div>
+    `;
   }
 
-  list.innerHTML = suggestions
+  const cards = suggestions
     .map(
       (suggestion) => `
         <button class="suggestion-card" type="button" data-suggestion-start="${suggestion.startIndex}" data-suggestion-end="${suggestion.endIndex}">
           <span>
-            <small>${suggestion.label}</small>
-            <strong>${suggestion.from} - ${suggestion.to}</strong>
+            <small>${escapeHtml(suggestion.label)}</small>
+            <strong>${escapeHtml(suggestion.from)} - ${escapeHtml(suggestion.to)}</strong>
           </span>
           <span class="suggestion-stats">
             <span>${suggestion.totals.distance.toFixed(1)} km</span>
@@ -976,6 +941,14 @@ function renderSuggestionCards() {
       `,
     )
     .join("");
+
+  return `
+    <div class="stamp-popup">
+      <strong>${title}</strong>
+      <span>${altitude}</span>
+      <div class="suggestion-list">${cards}</div>
+    </div>
+  `;
 }
 
 function getDaySuggestions(startStampIndex) {
@@ -1056,6 +1029,8 @@ function buildSuggestion(startIndex, endIndex, band, isReverse) {
 function handleSuggestionClick(event) {
   const button = event.target.closest("[data-suggestion-start]");
   if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
   const startIndex = Number(button.dataset.suggestionStart);
   const endIndex = Number(button.dataset.suggestionEnd);
   if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) return;
@@ -1065,15 +1040,8 @@ function handleSuggestionClick(event) {
   updateChangedSelectedSegments(before, new Set(state.selectedSegments));
   saveState();
   updateSummaryAndProfile();
+  map.closePopup();
   fitSelectedSegments();
-}
-
-function getOrderedStampOptions() {
-  if (!segments.length) return [];
-  return [
-    { name: segments[0].from },
-    ...segments.map((segment) => ({ name: segment.to })),
-  ];
 }
 
 function toggleDirection() {
@@ -1474,6 +1442,19 @@ function formatMinutes(minutes) {
 
 function formatStampDistance(stamp) {
   return `${Math.max(stamp.nextDistance, 0).toFixed(1)} km`;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[char];
+  });
 }
 
 function parseTime(time) {
