@@ -192,6 +192,7 @@ let stampById = new Map();
 let state = loadState(activeTrailId);
 const highlightedLayers = new Map();
 const stampMarkers = new Map();
+const stampHitMarkers = new Map();
 const segmentCards = new Map();
 const selectInputs = new Map();
 const stampInputs = new Map();
@@ -464,6 +465,7 @@ function renderMap() {
   highlightedLayers.clear();
   stampLayerGroup?.clearLayers();
   stampMarkers.clear();
+  stampHitMarkers.clear();
 
   baseRouteLayer = L.polyline(
     segments.map((segment) => segment.points),
@@ -485,6 +487,8 @@ function renderMap() {
 
   stamps.forEach((stamp, index) => {
     if (!Number.isFinite(stamp.lat) || !Number.isFinite(stamp.lng)) return;
+    const popupOptions = { maxWidth: 320 };
+    const popupContent = () => getStampPopupContent(stamp, index);
     const marker = L.circleMarker([stamp.lat, stamp.lng], {
       radius: 6,
       color: "#ffffff",
@@ -493,9 +497,20 @@ function renderMap() {
       weight: 2,
       bubblingMouseEvents: false,
     }).addTo(stampLayerGroup);
+    const hitMarker = L.circleMarker([stamp.lat, stamp.lng], {
+      radius: 18,
+      color: "#ffffff",
+      opacity: 0,
+      fillColor: "#ffffff",
+      fillOpacity: 0.01,
+      weight: 0,
+      bubblingMouseEvents: false,
+    }).addTo(stampLayerGroup);
 
-    marker.bindPopup(() => getStampPopupContent(stamp, index), { maxWidth: 320 });
+    marker.bindPopup(popupContent, popupOptions);
+    hitMarker.bindPopup(popupContent, popupOptions);
     stampMarkers.set(stamp.id, marker);
+    stampHitMarkers.set(stamp.id, hitMarker);
   });
 }
 
@@ -741,6 +756,7 @@ function applyOfficialStamps(geojson) {
     stamp.lat = lat;
     stamp.lng = lng;
     stampMarkers.get(stamp.id)?.setLatLng([lat, lng]);
+    stampHitMarkers.get(stamp.id)?.setLatLng([lat, lng]);
   });
 }
 
