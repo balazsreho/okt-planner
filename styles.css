@@ -20,7 +20,7 @@
   --shadow: 0 22px 70px rgba(15, 34, 56, 0.26);
   --shadow-soft: 0 10px 30px rgba(15, 34, 56, 0.18);
   --sheet-height: 34dvh;
-  --sheet-min: 88px;
+  --sheet-min: calc(88px + var(--safe-area-bottom));
   --sheet-gap: 10px;
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
@@ -376,8 +376,7 @@ h2 {
   font-size: 19px;
 }
 
-.icon-button,
-.tab {
+.icon-button {
   border: 1px solid var(--glass-line);
   background: var(--glass-soft);
   color: var(--ink);
@@ -402,8 +401,7 @@ h2 {
   stroke-width: 2;
 }
 
-.icon-button:hover,
-.tab:hover {
+.icon-button:hover {
   border-color: rgba(var(--trail-rgb), 0.42);
 }
 
@@ -817,16 +815,44 @@ h2 {
   display: none;
 }
 
-.sheet-controls {
-  display: block;
+.bottom-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--glass-line);
+  background: rgba(250, 252, 254, 0.48);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.62) inset;
 }
 
-.tabs {
+.nav-item {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 14px;
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  min-height: 50px;
+  place-items: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.nav-item svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.nav-item.active {
+  background: rgba(var(--trail-rgb), 0.15);
+  color: var(--trail-dark);
 }
 
 .trail-switcher {
@@ -861,18 +887,16 @@ h2 {
   box-shadow: 0 7px 18px rgba(var(--trail-rgb), 0.14);
 }
 
-.tab {
-  min-width: 0;
-  min-height: 42px;
-  border-radius: 14px;
-  font-weight: 800;
+.mobile-trail-switcher {
+  margin: 8px 0 0;
 }
 
-.tab.active {
-  border-color: rgba(var(--trail-rgb), 0.5);
-  background: rgba(var(--trail-rgb), 0.92);
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(var(--trail-rgb), 0.18);
+.more-card {
+  padding: 14px;
+  border: 1px solid var(--glass-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
 }
 
 .panel-view {
@@ -1146,40 +1170,8 @@ h2 {
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
   }
 
-  .sheet-controls {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    align-items: stretch;
-    gap: 3px;
-    margin: 0 14px 7px;
-    padding: 3px;
-    border: 1px solid var(--glass-line);
-    border-radius: 18px;
-    background: rgba(238, 247, 252, 0.38);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
-  }
-
-  .tabs {
-    display: contents;
-    gap: 4px;
-    margin: 0;
-    padding: 0;
-    border-bottom: 0;
-    border: 0;
-    border-radius: 16px;
-    background: transparent;
-    box-shadow: none;
-  }
-
   .trail-switcher {
-    display: contents;
     flex: 0 0 auto;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 16px;
-    background: transparent;
-    box-shadow: none;
   }
 
   .trail-option {
@@ -1188,30 +1180,39 @@ h2 {
     font-size: 11px;
   }
 
-  .tab {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .section-heading {
     align-items: flex-end;
   }
 
-  .tab {
-    min-height: 32px;
-    border: 0;
-    border-radius: 13px;
-    background: transparent;
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 850;
+  .desktop-trail-switcher {
+    display: none;
   }
 
-  .tab.active {
-    background: rgba(var(--trail-rgb), 0.15);
-    color: var(--trail-dark);
-    box-shadow: 0 8px 22px rgba(var(--trail-rgb), 0.12);
+  .bottom-nav {
+    flex: 0 0 auto;
+    padding: 6px 10px max(7px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(88, 112, 140, 0.22);
+    background: rgba(250, 252, 254, 0.34);
+  }
+
+  .nav-item {
+    min-height: 50px;
+    border-radius: 16px;
+  }
+
+  .nav-item span {
+    font-size: 10px;
+  }
+
+  .mobile-trail-switcher {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 8px 0 0;
+    padding: 4px;
+    border: 1px solid var(--glass-line);
+    border-radius: 16px;
+    background: rgba(218, 229, 238, 0.3);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
   }
 
   .progress-summary {
@@ -1420,13 +1421,6 @@ h2 {
 @media (max-width: 520px) {
   :root {
     --sheet-gap: 8px;
-  }
-
-  .tabs {
-    margin-right: 0;
-    margin-left: 0;
-    padding-right: 0;
-    padding-left: 0;
   }
 
   .progress-summary {
