@@ -72,17 +72,11 @@
         <div class="sheet-grabber" id="sheetGrabber" aria-hidden="true">
           <span></span>
         </div>
-        <div class="sheet-controls">
-          <nav class="trail-switcher" aria-label="Trail">
-            <button class="trail-option active" type="button" data-trail="okt">OKT</button>
-            <button class="trail-option" type="button" data-trail="ak">Alföld</button>
-            <button class="trail-option" type="button" data-trail="rpddk">DDK</button>
-          </nav>
-          <nav class="tabs" aria-label="Views">
-            <button class="tab active" id="planTab" type="button">Plan</button>
-            <button class="tab" id="progressTab" type="button">Progress</button>
-          </nav>
-        </div>
+        <nav class="trail-switcher desktop-trail-switcher" aria-label="Trail">
+          <button class="trail-option active" type="button" data-trail="okt">OKT</button>
+          <button class="trail-option" type="button" data-trail="ak">Alföld</button>
+          <button class="trail-option" type="button" data-trail="rpddk">DDK</button>
+        </nav>
 
         <section class="panel-view active" id="planView">
           <details class="travel-panel" id="travelPanel" aria-label="Public transport estimate">
@@ -114,6 +108,47 @@
           </div>
           <div class="stamp-list" id="stampList"></div>
         </section>
+
+        <section class="panel-view" id="moreView">
+          <div class="more-card">
+            <span class="eyebrow">Trail</span>
+            <nav class="trail-switcher mobile-trail-switcher" aria-label="Trail">
+              <button class="trail-option active" type="button" data-trail="okt">OKT</button>
+              <button class="trail-option" type="button" data-trail="ak">Alföld</button>
+              <button class="trail-option" type="button" data-trail="rpddk">DDK</button>
+            </nav>
+          </div>
+        </section>
+
+        <nav class="bottom-nav" aria-label="Primary">
+          <button class="nav-item" id="mapTab" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path>
+              <path d="M9 3v15M15 6v15"></path>
+            </svg>
+            <span>Map</span>
+          </button>
+          <button class="nav-item active" id="planTab" type="button" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 6h13M8 12h13M8 18h13"></path>
+              <path d="M3 6h.01M3 12h.01M3 18h.01"></path>
+            </svg>
+            <span>Plan</span>
+          </button>
+          <button class="nav-item" id="progressTab" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3a9 9 0 1 1-9 9"></path>
+              <path d="M12 3v9h9"></path>
+            </svg>
+            <span>Progress</span>
+          </button>
+          <button class="nav-item" id="moreTab" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM19 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM5 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"></path>
+            </svg>
+            <span>More</span>
+          </button>
+        </nav>
       </aside>
     </main>
 

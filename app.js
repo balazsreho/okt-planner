@@ -248,6 +248,7 @@ function init() {
   renderMap();
   renderLists();
   bindControls();
+  setInitialView();
   initTravelControls();
   updateUi();
   refreshMapLayout(true);
@@ -606,8 +607,10 @@ function renderLists() {
 }
 
 function bindControls() {
+  document.querySelector("#mapTab").addEventListener("click", () => switchTab("map"));
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan", true));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress", true));
+  document.querySelector("#moreTab").addEventListener("click", () => switchTab("more", true));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
   document.querySelectorAll("[data-direction]").forEach((button) => {
     button.addEventListener("click", () => setDirection(button.dataset.direction));
@@ -625,6 +628,10 @@ function bindControls() {
   window.addEventListener("resize", () => refreshMapLayout(false));
   initBottomSheet();
   syncTrailButtons();
+}
+
+function setInitialView() {
+  switchTab(window.matchMedia("(max-width: 860px)").matches ? "map" : "plan");
 }
 
 function handleSegmentListChange(event) {
@@ -722,12 +729,27 @@ function initBottomSheet() {
 }
 
 function getCompactSheetHeight() {
-  const safeAreaBottom = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-area-bottom")) || 0;
-  return Math.round(88 + safeAreaBottom);
+  return Math.round(88 + getSafeAreaBottom());
+}
+
+function getSafeAreaBottom() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;visibility:hidden;height:env(safe-area-inset-bottom);";
+  document.body.appendChild(probe);
+  const value = Number.parseFloat(getComputedStyle(probe).height) || 0;
+  probe.remove();
+  return value;
 }
 
 function setSheetExpanded(isExpanded) {
   document.querySelector(".side-pane")?.classList.toggle("expanded", isExpanded);
+}
+
+function collapseBottomSheet() {
+  if (!window.matchMedia("(max-width: 860px)").matches) return;
+  document.documentElement.style.setProperty("--sheet-height", `${getCompactSheetHeight()}px`);
+  setSheetExpanded(false);
+  refreshMapLayout(false);
 }
 
 async function loadOfficialGeometry() {
@@ -1642,10 +1664,23 @@ function pointToSegmentDistance(point, start, end) {
 }
 
 function switchTab(tab, shouldExpand = false) {
-  document.querySelector("#planTab").classList.toggle("active", tab === "plan");
-  document.querySelector("#progressTab").classList.toggle("active", tab === "progress");
-  document.querySelector("#planView").classList.toggle("active", tab === "plan");
-  document.querySelector("#progressView").classList.toggle("active", tab === "progress");
+  const view = ["map", "plan", "progress", "more"].includes(tab) ? tab : "plan";
+  document.querySelector("#mapTab").classList.toggle("active", view === "map");
+  document.querySelector("#planTab").classList.toggle("active", view === "plan");
+  document.querySelector("#progressTab").classList.toggle("active", view === "progress");
+  document.querySelector("#moreTab").classList.toggle("active", view === "more");
+  document.querySelectorAll(".bottom-nav .nav-item").forEach((button) => {
+    button.toggleAttribute("aria-current", button.classList.contains("active"));
+  });
+  document.querySelector("#planView").classList.toggle("active", view === "plan");
+  document.querySelector("#progressView").classList.toggle("active", view === "progress");
+  document.querySelector("#moreView").classList.toggle("active", view === "more");
+
+  if (view === "map") {
+    collapseBottomSheet();
+    return;
+  }
+
   if (shouldExpand) expandBottomSheetForLists();
   refreshMapLayout(false);
 }
