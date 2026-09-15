@@ -670,6 +670,7 @@ function initBottomSheet() {
     const [minHeight, , maxHeight] = getSnapHeights();
     const clamped = Math.max(minHeight, Math.min(maxHeight, height));
     document.documentElement.style.setProperty("--sheet-height", `${clamped}px`);
+    setSheetExpanded(clamped > minHeight + 24);
     return clamped;
   };
 
@@ -722,7 +723,11 @@ function initBottomSheet() {
 
 function getCompactSheetHeight() {
   const safeAreaBottom = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-area-bottom")) || 0;
-  return Math.round(112 + safeAreaBottom);
+  return Math.round(88 + safeAreaBottom);
+}
+
+function setSheetExpanded(isExpanded) {
+  document.querySelector(".side-pane")?.classList.toggle("expanded", isExpanded);
 }
 
 async function loadOfficialGeometry() {
@@ -1137,12 +1142,14 @@ function expandBottomSheetForDetails() {
   if (!window.matchMedia("(max-width: 860px)").matches) return;
   const height = Math.round(window.innerHeight * 0.72);
   document.documentElement.style.setProperty("--sheet-height", `${height}px`);
+  setSheetExpanded(true);
 }
 
 function expandBottomSheetForLists() {
   if (!window.matchMedia("(max-width: 860px)").matches) return;
   const height = Math.round(window.innerHeight * 0.48);
   document.documentElement.style.setProperty("--sheet-height", `${height}px`);
+  setSheetExpanded(true);
   refreshMapLayout(false);
 }
 

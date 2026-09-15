@@ -20,7 +20,7 @@
   --shadow: 0 22px 70px rgba(15, 34, 56, 0.26);
   --shadow-soft: 0 10px 30px rgba(15, 34, 56, 0.18);
   --sheet-height: 34dvh;
-  --sheet-min: 112px;
+  --sheet-min: 88px;
   --sheet-gap: 10px;
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
@@ -487,8 +487,16 @@ h2 {
   min-width: 0;
 }
 
+.route-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .elevation-header {
   display: flex;
+  min-width: 0;
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
@@ -496,7 +504,8 @@ h2 {
   line-height: 1.25;
 }
 
-.elevation-header.is-clickable {
+.elevation-header.is-clickable,
+.route-topline:has(.elevation-header.is-clickable) {
   cursor: pointer;
 }
 
@@ -508,8 +517,25 @@ h2 {
 }
 
 #profileTitle {
+  min-width: 0;
+  overflow: hidden;
   color: var(--ink);
   font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+#profileMeta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.route-topline .direction-stat {
+  flex: 0 0 118px;
+  padding: 8px;
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.28);
 }
 
 #elevationChart {
@@ -563,6 +589,10 @@ h2 {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.44);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
+}
+
+.travel-panel:not([open]) {
+  display: none;
 }
 
 .travel-panel summary {
@@ -1118,16 +1148,19 @@ h2 {
 
   .sheet-controls {
     display: grid;
-    gap: 4px;
-    margin: 0 16px 8px;
-    padding: 4px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 3px;
+    margin: 0 14px 7px;
+    padding: 3px;
     border: 1px solid var(--glass-line);
-    border-radius: 20px;
-    background: rgba(218, 229, 238, 0.34);
+    border-radius: 18px;
+    background: rgba(238, 247, 252, 0.38);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
   }
 
   .tabs {
+    display: contents;
     gap: 4px;
     margin: 0;
     padding: 0;
@@ -1139,6 +1172,7 @@ h2 {
   }
 
   .trail-switcher {
+    display: contents;
     flex: 0 0 auto;
     margin: 0;
     padding: 0;
@@ -1149,9 +1183,9 @@ h2 {
   }
 
   .trail-option {
-    min-height: 30px;
-    border-radius: 12px;
-    font-size: 12px;
+    min-height: 32px;
+    border-radius: 13px;
+    font-size: 11px;
   }
 
   .tab {
@@ -1165,12 +1199,13 @@ h2 {
   }
 
   .tab {
-    min-height: 36px;
+    min-height: 32px;
     border: 0;
-    border-radius: 14px;
+    border-radius: 13px;
     background: transparent;
     color: var(--muted);
-    font-size: 15px;
+    font-size: 11px;
+    font-weight: 850;
   }
 
   .tab.active {
@@ -1197,6 +1232,10 @@ h2 {
     padding: 10px 16px 0;
   }
 
+  .side-pane:not(.expanded) .panel-view {
+    display: none;
+  }
+
   .segment-list,
   .stamp-list {
     padding-bottom: max(16px, env(safe-area-inset-bottom));
@@ -1205,14 +1244,14 @@ h2 {
   .elevation-dock {
     bottom: calc(clamp(var(--sheet-min), var(--sheet-height), calc(100dvh - 56px)) + var(--sheet-gap));
     width: calc(100% - 20px);
-    min-height: 132px;
+    min-height: 0;
     max-height: calc(100dvh - clamp(var(--sheet-min), var(--sheet-height), calc(100dvh - 56px)) - var(--sheet-gap) - max(64px, env(safe-area-inset-top)));
     grid-template-columns: 1fr;
-    gap: 7px;
-    padding: 9px 10px 8px;
+    gap: 6px;
+    padding: 8px 10px 8px;
     border-color: var(--glass-border);
-    border-radius: 22px;
-    background: rgba(250, 252, 254, 0.62);
+    border-radius: 21px;
+    background: rgba(250, 252, 254, 0.58);
     box-shadow: 0 12px 38px rgba(20, 33, 48, 0.16);
     transition: min-height 180ms ease, max-height 180ms ease, bottom 180ms ease;
   }
@@ -1232,16 +1271,22 @@ h2 {
   }
 
   .elevation-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: 0.92fr 0.88fr 0.98fr 1.12fr;
+    gap: 0;
     border-bottom: 1px solid var(--glass-line);
-    padding-bottom: 7px;
+    padding-bottom: 5px;
   }
 
   .elevation-stats > div {
-    padding: 6px 7px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.24);
+    padding: 0 7px;
+    border: 0;
+    border-right: 1px solid var(--glass-line);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .elevation-stats > div:last-child {
+    border-right: 0;
   }
 
   .elevation-stats strong {
@@ -1253,7 +1298,7 @@ h2 {
   }
 
   #elevationChart {
-    height: 78px;
+    height: 74px;
   }
 
   .dock-travel-button {
@@ -1272,20 +1317,48 @@ h2 {
   }
 
   .elevation-header {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 1px;
     font-size: 12px;
   }
 
+  #profileTitle,
+  #profileMeta {
+    white-space: nowrap;
+  }
+
   .stat-label {
-    font-size: 9px;
+    font-size: 8px;
+  }
+
+  .route-topline {
+    align-items: start;
+    gap: 8px;
+  }
+
+  .route-topline .direction-stat {
+    flex: 0 0 92px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .route-topline .direction-stat .stat-label {
+    display: none;
   }
 
   .direction-segmented {
-    margin-top: 3px;
+    margin-top: 0;
+    padding: 2px;
+    border-radius: 10px;
   }
 
   .direction-segmented button {
-    min-height: 23px;
-    font-size: 10px;
+    min-height: 22px;
+    border-radius: 8px;
+    font-size: 9px;
   }
 
   .travel-panel {
