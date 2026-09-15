@@ -72,6 +72,7 @@ body::after {
 button,
 input {
   font: inherit;
+  touch-action: manipulation;
 }
 
 button {
@@ -709,7 +710,7 @@ h2 {
   background: rgba(255, 255, 255, 0.34);
   color: var(--ink);
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -1646,6 +1647,9 @@ h2 {
   .travel-controls input,
   .travel-button {
     min-height: 40px;
+  }
+
+  .travel-button {
     font-size: 13px;
   }
 
