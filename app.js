@@ -613,7 +613,8 @@ function bindControls() {
     button.addEventListener("click", () => setDirection(button.dataset.direction));
   });
   document.querySelector("#travelButton").addEventListener("click", handleTravelRequest);
-  document.querySelector("#travelPanel").addEventListener("toggle", syncTravelOpenState);
+  document.querySelector("#dockTravelButton").addEventListener("click", openTravelDetails);
+  document.querySelector("#travelPanel").addEventListener("toggle", handleTravelPanelToggle);
   document.addEventListener("click", handleSuggestionClick);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
@@ -1079,36 +1080,58 @@ function initTravelControls() {
   tomorrowMorning.setDate(tomorrowMorning.getDate() + 1);
   tomorrowMorning.setHours(7, 0, 0, 0);
   input.value = formatDateTimeLocal(tomorrowMorning);
-  syncTravelOpenState();
 }
 
 function syncTravelPanel(selected, selectedTotals) {
   const button = document.querySelector("#travelButton");
+  const dockButton = document.querySelector("#dockTravelButton");
+  const dockSummary = document.querySelector("#dockTravelSummary");
   const results = document.querySelector("#travelResults");
   const panel = document.querySelector("#travelPanel");
-  if (!button || !results || !panel) return;
+  if (!button || !dockButton || !dockSummary || !results || !panel) return;
 
   const canCheck = selected.length > 0 && selected.every((segment) => segment.points?.length);
   button.disabled = !canCheck;
+  dockButton.disabled = !canCheck;
+  panel.hidden = !canCheck;
   panel.dataset.routeKey = getTravelRouteKey(selected, selectedTotals);
   if (!canCheck) {
+    panel.open = false;
+    results.removeAttribute("data-route-key");
     results.textContent = "Select a route to estimate public transport from Budapest.";
+    dockSummary.textContent = "Select a route";
     return;
+  }
+
+  if (!results.dataset.routeKey) {
+    dockSummary.textContent = "Check from Budapest";
   }
 
   if (results.dataset.routeKey && results.dataset.routeKey !== panel.dataset.routeKey) {
     results.textContent = "Check public transport for this selected route.";
     results.removeAttribute("data-route-key");
+    dockSummary.textContent = "Check from Budapest";
   }
 }
 
-function syncTravelOpenState() {
+function openTravelDetails() {
   const panel = document.querySelector("#travelPanel");
-  const dock = document.querySelector(".elevation-dock");
-  if (!panel || !dock) return;
-  dock.classList.toggle("travel-open", panel.open);
+  if (!panel) return;
+  switchTab("plan");
+  panel.open = true;
+  expandBottomSheetForDetails();
+}
+
+function handleTravelPanelToggle(event) {
+  if (event.target.open) expandBottomSheetForDetails();
   refreshMapLayout(false);
   setTimeout(() => refreshMapLayout(false), 220);
+}
+
+function expandBottomSheetForDetails() {
+  if (!window.matchMedia("(max-width: 860px)").matches) return;
+  const height = Math.round(window.innerHeight * 0.72);
+  document.documentElement.style.setProperty("--sheet-height", `${height}px`);
 }
 
 async function handleTravelRequest() {
@@ -1126,6 +1149,7 @@ async function handleTravelRequest() {
 
   button.disabled = true;
   button.textContent = "Checking...";
+  updateDockTravelSummary("Checking...");
   results.innerHTML = '<span class="travel-muted">Looking for Budapest connections...</span>';
 
   try {
@@ -1143,12 +1167,29 @@ async function handleTravelRequest() {
 
     results.dataset.routeKey = document.querySelector("#travelPanel")?.dataset.routeKey || "";
     results.innerHTML = renderTravelResults(outbound, inbound, route, returnDepartAt);
+    updateDockTravelFromResults(outbound, inbound);
   } catch (error) {
     results.innerHTML = `<span class="travel-error">${escapeHtml(error.message || "Could not fetch public transport right now.")}</span>`;
+    updateDockTravelSummary("Travel unavailable");
   } finally {
     button.disabled = false;
     button.textContent = "Check travel";
   }
+}
+
+function updateDockTravelSummary(text) {
+  const dockSummary = document.querySelector("#dockTravelSummary");
+  if (dockSummary) dockSummary.textContent = text;
+}
+
+function updateDockTravelFromResults(outbound, inbound) {
+  if (outbound?.empty || inbound?.empty) {
+    updateDockTravelSummary("Some routes missing");
+    return;
+  }
+  const outboundMinutes = Math.round((outbound?.duration || 0) / 60);
+  const inboundMinutes = Math.round((inbound?.duration || 0) / 60);
+  updateDockTravelSummary(`${formatMinutes(outboundMinutes)} there · ${formatMinutes(inboundMinutes)} back`);
 }
 
 async function fetchTransitItinerary(from, to, departAt, isReturnTrip) {
