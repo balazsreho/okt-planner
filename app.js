@@ -520,8 +520,6 @@ function renderLists() {
       `,
     )
     .join("");
-  renderDayPlanner();
-
   stampList.innerHTML = sectionGroups
     .map(
       (group) => `
@@ -584,9 +582,6 @@ function bindControls() {
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan"));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
-  document.querySelectorAll("[data-day-distance]").forEach((button) => {
-    button.addEventListener("click", () => selectDayPlan(Number(button.dataset.dayDistance)));
-  });
   document.querySelector("#directionToggle").addEventListener("click", toggleDirection);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
@@ -782,7 +777,6 @@ function updateSummaryAndProfile() {
   document
     .querySelector(".elevation-header")
     .setAttribute("title", selected.length > 0 ? "Zoom to selected route" : "");
-  syncDayPlannerStart();
   syncDirectionToggle();
 
   renderElevation(selected);
@@ -910,28 +904,6 @@ function deselectAllSegments() {
   updateSummaryAndProfile();
 }
 
-function renderDayPlanner() {
-  const select = document.querySelector("#dayStartSelect");
-  select.innerHTML = segments
-    .map(
-      (segment, index) =>
-        `<option value="${index}">${segment.from} · ${segment.section}</option>`,
-    )
-    .join("");
-  syncDayPlannerStart();
-}
-
-function syncDayPlannerStart() {
-  const select = document.querySelector("#dayStartSelect");
-  if (!select?.options.length) return;
-  const selectedIndexes = state.selectedSegments
-    .map((id) => segmentById.get(id)?.number - 1)
-    .filter((index) => Number.isFinite(index));
-  const nextIncompleteIndex = segments.findIndex((segment) => !state.completedSegments.includes(segment.id));
-  const targetIndex = selectedIndexes.length ? Math.min(...selectedIndexes) : Math.max(nextIncompleteIndex, 0);
-  select.value = String(Math.min(targetIndex, segments.length - 1));
-}
-
 function toggleDirection() {
   state.direction = state.direction === "reverse" ? "forward" : "reverse";
   saveState();
@@ -944,26 +916,6 @@ function syncDirectionToggle() {
   button.classList.toggle("active", isReverse);
   button.setAttribute("aria-pressed", String(isReverse));
   button.textContent = isReverse ? "Forward plan" : "Reverse plan";
-}
-
-function selectDayPlan(targetDistance) {
-  const startIndex = Number(document.querySelector("#dayStartSelect").value);
-  if (!Number.isFinite(startIndex) || !segments[startIndex]) return;
-
-  let distance = 0;
-  let endIndex = startIndex;
-  while (endIndex < segments.length) {
-    distance += segments[endIndex].distance;
-    if (distance >= targetDistance) break;
-    endIndex += 1;
-  }
-
-  const before = new Set(state.selectedSegments);
-  state.selectedSegments = segmentIdsBetween(startIndex, Math.min(endIndex, segments.length - 1));
-  updateChangedSelectedSegments(before, new Set(state.selectedSegments));
-  saveState();
-  updateSummaryAndProfile();
-  fitSelectedSegments();
 }
 
 function syncCompletedSegmentsFromStamps() {
