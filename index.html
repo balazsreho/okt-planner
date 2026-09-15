@@ -32,6 +32,13 @@
               <span class="stat-label">Selected</span>
               <strong id="selectedDistance">0.0 km</strong>
             </div>
+            <div class="direction-stat" aria-label="Route direction">
+              <span class="stat-label">Direction</span>
+              <span class="direction-segmented">
+                <button type="button" data-direction="forward" aria-pressed="true">W-E</button>
+                <button type="button" data-direction="reverse" aria-pressed="false">E-W</button>
+              </span>
+            </div>
             <div>
               <span class="stat-label" id="selectedTimeLabel">Forward</span>
               <strong id="selectedTime">0:00</strong>
@@ -85,27 +92,18 @@
           <button class="tab" id="progressTab" type="button">Progress</button>
         </nav>
 
-        <div class="progress-summary">
-          <div class="progress-ring" id="progressRing">0%</div>
-          <div>
-            <strong id="completedDistance">0.0 km completed</strong>
-            <span id="remainingDistance">1183.1 km remaining</span>
-          </div>
-        </div>
-
         <section class="panel-view active" id="planView">
-          <div class="panel-actions">
-            <button class="direction-toggle" id="directionToggle" type="button" aria-pressed="false">
-              Forward W-E
-            </button>
-            <button class="text-button glyph-button" id="deselectButton" type="button" aria-label="Deselect all segments" title="Deselect all">
-              ×
-            </button>
-          </div>
           <div class="segment-list" id="segmentList"></div>
         </section>
 
         <section class="panel-view" id="progressView">
+          <div class="progress-summary">
+            <div class="progress-ring" id="progressRing">0%</div>
+            <div>
+              <strong id="completedDistance">0.0 km completed</strong>
+              <span id="remainingDistance">1183.1 km remaining</span>
+            </div>
+          </div>
           <div class="stamp-list" id="stampList"></div>
         </section>
       </aside>
