@@ -776,6 +776,91 @@ h2 {
   white-space: nowrap;
 }
 
+.travel-leg-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 3px;
+}
+
+.travel-row .travel-leg-strip,
+.travel-row .travel-leg-strip span {
+  overflow: visible;
+  white-space: normal;
+}
+
+.travel-leg-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 26px;
+  gap: 5px;
+  padding: 3px 8px 3px 5px;
+  border: 1px solid rgba(var(--trail-rgb), 0.18);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.54), rgba(var(--trail-rgb), 0.1)),
+    rgba(255, 255, 255, 0.24);
+  color: var(--ink);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.58) inset;
+}
+
+.travel-leg-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(var(--trail-rgb), 0.16);
+  color: var(--trail-dark);
+}
+
+.travel-leg-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.travel-leg-name {
+  display: block;
+  min-width: 0;
+  max-width: min(190px, 62vw);
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-leg-chip[data-mode="bus"] .travel-leg-icon {
+  background: rgba(43, 124, 206, 0.16);
+  color: #1f6eb8;
+}
+
+.travel-leg-chip[data-mode="rail"] .travel-leg-icon {
+  background: rgba(36, 139, 96, 0.16);
+  color: #227c59;
+}
+
+.travel-leg-chip[data-mode="subway"] .travel-leg-icon {
+  background: rgba(142, 92, 202, 0.16);
+  color: #7650b2;
+}
+
+.travel-leg-chip[data-mode="tram"] .travel-leg-icon {
+  background: rgba(216, 142, 35, 0.18);
+  color: #aa6b17;
+}
+
+.travel-leg-chip[data-mode="ferry"] .travel-leg-icon {
+  background: rgba(30, 145, 168, 0.16);
+  color: #187f98;
+}
+
 .travel-total {
   display: flex;
   align-items: center;

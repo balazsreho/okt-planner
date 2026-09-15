@@ -1307,6 +1307,7 @@ async function fetchTransitItinerary(from, to, departAt, isReturnTrip) {
     startTime: itinerary.startTime,
     endTime: itinerary.endTime,
     transfers: itinerary.transfers,
+    steps: getTransitSteps(itinerary.legs || []),
     summary: summarizeTransitLegs(itinerary.legs || []),
   };
 }
@@ -1344,7 +1345,7 @@ function renderTravelRow(item, requestedTime) {
       <span class="travel-row-label">${escapeHtml(item.label)}</span>
       <strong>${formatMinutes(Math.round(item.duration / 60))}</strong>
       <span>${formatClock(item.startTime)}-${formatClock(item.endTime)} · ${item.transfers} transfers</span>
-      <small>${escapeHtml(item.summary || "Public transport")}</small>
+      ${renderTransitSteps(item.steps, item.summary)}
     </div>
   `;
 }
@@ -1361,10 +1362,68 @@ function formatTravelRouteLabel(selected) {
 function summarizeTransitLegs(legs) {
   const names = legs
     .filter((leg) => leg.mode !== "WALK")
-    .map((leg) => leg.displayName || leg.routeShortName || formatMode(leg.mode))
+    .map((leg) => getTransitStepLabel(leg))
     .filter(Boolean);
   if (!names.length) return "Walk";
   return names.slice(0, 5).join(" -> ");
+}
+
+function getTransitSteps(legs) {
+  return legs
+    .filter((leg) => leg.mode !== "WALK")
+    .map((leg) => ({
+      mode: normalizeTransitMode(leg.mode),
+      label: getTransitStepLabel(leg),
+    }))
+    .filter((step) => step.label)
+    .slice(0, 5);
+}
+
+function getTransitStepLabel(leg) {
+  return leg.displayName || leg.routeShortName || leg.routeLongName || formatMode(leg.mode);
+}
+
+function normalizeTransitMode(mode) {
+  const value = String(mode || "").toUpperCase();
+  if (value.includes("RAIL") || value === "TRAIN") return "rail";
+  if (value.includes("SUBWAY") || value.includes("METRO")) return "subway";
+  if (value.includes("TRAM")) return "tram";
+  if (value.includes("BUS") || value.includes("COACH")) return "bus";
+  if (value.includes("FERRY")) return "ferry";
+  return "transit";
+}
+
+function renderTransitSteps(steps = [], summary = "") {
+  if (!steps.length) {
+    return `<small>${escapeHtml(summary || "Public transport")}</small>`;
+  }
+
+  return `
+    <div class="travel-leg-strip" aria-label="${escapeHtml(summary || "Public transport")}">
+      ${steps
+    .map(
+      (step) => `
+        <span class="travel-leg-chip" data-mode="${escapeHtml(step.mode)}">
+          <span class="travel-leg-icon" aria-hidden="true">${getTransitIcon(step.mode)}</span>
+          <span class="travel-leg-name">${escapeHtml(step.label)}</span>
+        </span>
+      `,
+    )
+    .join("")}
+    </div>
+  `;
+}
+
+function getTransitIcon(mode) {
+  const icons = {
+    bus: `<svg viewBox="0 0 24 24" role="img"><path d="M6.5 4h11A2.5 2.5 0 0 1 20 6.5V16a2 2 0 0 1-1.4 1.9V20h-2v-2H7.4v2h-2v-2.1A2 2 0 0 1 4 16V6.5A2.5 2.5 0 0 1 6.5 4Zm.1 2A.6.6 0 0 0 6 6.6V11h12V6.6a.6.6 0 0 0-.6-.6H6.6ZM7 15.5a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Zm10 0a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z"/></svg>`,
+    ferry: `<svg viewBox="0 0 24 24" role="img"><path d="M5 10.5 8 5h8l3 5.5V15l-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3L7 15l-2 1.3v-5.8ZM9.2 7l-1.4 2.5h8.4L14.8 7H9.2ZM4 18.3l3-1.9 2 1.3 2-1.3 2 1.3 2-1.3 2 1.3 3-1.9v2.3l-3 1.9-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-3 1.9v-2.3Z"/></svg>`,
+    rail: `<svg viewBox="0 0 24 24" role="img"><path d="M8 3h8a3 3 0 0 1 3 3v8.5a3 3 0 0 1-2.3 2.9l1.8 2.6h-2.4l-1.4-2h-5.4l-1.4 2H5.5l1.8-2.6A3 3 0 0 1 5 14.5V6a3 3 0 0 1 3-3Zm0 2a1 1 0 0 0-1 1v4h10V6a1 1 0 0 0-1-1H8Zm.8 10.5a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Zm6.4 0a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z"/></svg>`,
+    subway: `<svg viewBox="0 0 24 24" role="img"><path d="M7 3h10a2 2 0 0 1 2 2v10a3 3 0 0 1-2.4 2.9L18 20H6l1.4-2.1A3 3 0 0 1 5 15V5a2 2 0 0 1 2-2Zm0 2v5h10V5H7Zm2 10.5a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Zm6 0a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z"/></svg>`,
+    tram: `<svg viewBox="0 0 24 24" role="img"><path d="M11 3h2v2h4a2 2 0 0 1 2 2v8.2a2.8 2.8 0 0 1-2.2 2.7L18 20h-2.2l-1.1-2H9.3l-1.1 2H6l1.2-2.1A2.8 2.8 0 0 1 5 15.2V7a2 2 0 0 1 2-2h4V3ZM7 7v3h10V7H7Zm2 8.5a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2Zm6 0a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2Z"/></svg>`,
+    transit: `<svg viewBox="0 0 24 24" role="img"><path d="M12 3a7 7 0 0 1 7 7c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 7-7Zm0 9.5A2.5 2.5 0 1 0 12 7a2.5 2.5 0 0 0 0 5.5Z"/></svg>`,
+  };
+  return icons[mode] || icons.transit;
 }
 
 function formatMode(mode) {
