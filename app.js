@@ -12,6 +12,13 @@ const daySuggestionBands = [
   { key: "normal", label: "Normal", minDistance: 16, idealDistance: 20, maxDistance: 25 },
   { key: "long", label: "Long", minDistance: 24, idealDistance: 30, maxDistance: 36 },
 ];
+const transitousPlanUrl = "https://api.transitous.org/api/v6/plan";
+const budapestOrigin = {
+  name: "Budapest-Keleti",
+  lat: 47.5003,
+  lng: 19.0839,
+};
+const hikeBufferMinutes = 15;
 const fallbackPalette = trailPalettes.okt;
 const officialRouteUrl =
   "https://turistaterkepek.hu/server/rest/services/orszagos_kektura/kekturahu/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson";
@@ -241,6 +248,7 @@ function init() {
   renderMap();
   renderLists();
   bindControls();
+  initTravelControls();
   updateUi();
   refreshMapLayout(true);
   if (useLiveOfficialGeometry) loadOfficialGeometry();
@@ -603,6 +611,7 @@ function bindControls() {
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
   document.querySelector("#directionToggle").addEventListener("click", toggleDirection);
+  document.querySelector("#travelButton").addEventListener("click", handleTravelRequest);
   document.addEventListener("click", handleSuggestionClick);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
@@ -800,6 +809,7 @@ function updateSummaryAndProfile() {
     .querySelector(".elevation-header")
     .setAttribute("title", selected.length > 0 ? "Zoom to selected route" : "");
   syncDirectionToggle();
+  syncTravelPanel(selected, selectedTotals);
 
   renderElevation(selected);
 }
@@ -1058,6 +1068,225 @@ function handleSuggestionClick(event) {
   updateSummaryAndProfile();
   map.closePopup();
   fitSelectedSegments();
+}
+
+function initTravelControls() {
+  const input = document.querySelector("#travelStartTime");
+  if (!input || input.value) return;
+  const tomorrowMorning = new Date();
+  tomorrowMorning.setDate(tomorrowMorning.getDate() + 1);
+  tomorrowMorning.setHours(7, 0, 0, 0);
+  input.value = formatDateTimeLocal(tomorrowMorning);
+}
+
+function syncTravelPanel(selected, selectedTotals) {
+  const button = document.querySelector("#travelButton");
+  const results = document.querySelector("#travelResults");
+  const panel = document.querySelector("#travelPanel");
+  if (!button || !results || !panel) return;
+
+  const canCheck = selected.length > 0 && selected.every((segment) => segment.points?.length);
+  button.disabled = !canCheck;
+  panel.dataset.routeKey = getTravelRouteKey(selected, selectedTotals);
+  if (!canCheck) {
+    results.textContent = "Select a route to estimate public transport from Budapest.";
+    return;
+  }
+
+  if (results.dataset.routeKey && results.dataset.routeKey !== panel.dataset.routeKey) {
+    results.textContent = "Check public transport for this selected route.";
+    results.removeAttribute("data-route-key");
+  }
+}
+
+async function handleTravelRequest() {
+  const button = document.querySelector("#travelButton");
+  const results = document.querySelector("#travelResults");
+  const selected = getSelectedSegmentsInOrder();
+  if (!selected.length || !button || !results) return;
+
+  const route = getSelectedTravelRoute(selected);
+  const departAt = parseTravelStartTime();
+  if (!route || !departAt) {
+    results.textContent = "Pick a route and departure time first.";
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Checking...";
+  results.innerHTML = '<span class="travel-muted">Looking for Budapest connections...</span>';
+
+  try {
+    const outbound = await fetchTransitItinerary(
+      budapestOrigin,
+      route.start,
+      departAt,
+      false,
+    );
+    const hikeMinutes = route.minutes;
+    const returnDepartAt = outbound?.endTime
+      ? new Date(new Date(outbound.endTime).getTime() + (hikeMinutes + hikeBufferMinutes) * 60000)
+      : new Date(departAt.getTime() + (hikeMinutes + hikeBufferMinutes) * 60000);
+    const inbound = await fetchTransitItinerary(route.end, budapestOrigin, returnDepartAt, true);
+
+    results.dataset.routeKey = document.querySelector("#travelPanel")?.dataset.routeKey || "";
+    results.innerHTML = renderTravelResults(outbound, inbound, route, returnDepartAt);
+  } catch (error) {
+    results.innerHTML = `<span class="travel-error">${escapeHtml(error.message || "Could not fetch public transport right now.")}</span>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Check travel";
+  }
+}
+
+async function fetchTransitItinerary(from, to, departAt, isReturnTrip) {
+  const params = new URLSearchParams({
+    fromPlace: `${from.lat},${from.lng}`,
+    toPlace: `${to.lat},${to.lng}`,
+    time: toTransitousDateTime(departAt),
+    numItineraries: "3",
+    radius: "2500",
+    maxTravelTime: "720",
+    detailedLegs: "false",
+    detailedTransfers: "false",
+  });
+  params.append("directModes", "");
+
+  const response = await fetch(`${transitousPlanUrl}?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Transit search failed (${response.status}).`);
+  }
+
+  const data = await response.json();
+  const itinerary = data.itineraries?.[0] || null;
+  if (!itinerary) {
+    return {
+      empty: true,
+      label: isReturnTrip ? "Back to Budapest" : "To trailhead",
+    };
+  }
+
+  return {
+    label: isReturnTrip ? "Back to Budapest" : "To trailhead",
+    duration: itinerary.duration,
+    startTime: itinerary.startTime,
+    endTime: itinerary.endTime,
+    transfers: itinerary.transfers,
+    summary: summarizeTransitLegs(itinerary.legs || []),
+  };
+}
+
+function renderTravelResults(outbound, inbound, route, returnDepartAt) {
+  const totalMinutes =
+    Math.round(((outbound?.duration || 0) + (inbound?.duration || 0)) / 60) + route.minutes + hikeBufferMinutes;
+  const total = outbound?.empty || inbound?.empty ? "" : `<div class="travel-total">Full day: ${formatMinutes(totalMinutes)}</div>`;
+  return `
+    ${renderTravelRow(outbound)}
+    ${renderTravelRow(inbound, returnDepartAt)}
+    ${total}
+  `;
+}
+
+function renderTravelRow(item, requestedTime) {
+  if (!item || item.empty) {
+    const suffix = requestedTime ? ` after ${formatClock(requestedTime)}` : "";
+    return `
+      <div class="travel-row">
+        <strong>${escapeHtml(item?.label || "Travel")}</strong>
+        <span>No public transport route found${suffix}.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="travel-row">
+      <strong>${escapeHtml(item.label)}</strong>
+      <span>${formatMinutes(Math.round(item.duration / 60))} · ${formatClock(item.startTime)}-${formatClock(item.endTime)} · ${item.transfers} transfers</span>
+      <small>${escapeHtml(item.summary || "Public transport")}</small>
+    </div>
+  `;
+}
+
+function summarizeTransitLegs(legs) {
+  const names = legs
+    .filter((leg) => leg.mode !== "WALK")
+    .map((leg) => leg.displayName || leg.routeShortName || formatMode(leg.mode))
+    .filter(Boolean);
+  if (!names.length) return "Walk";
+  return names.slice(0, 5).join(" -> ");
+}
+
+function formatMode(mode) {
+  return String(mode || "Transit")
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getSelectedTravelRoute(selected) {
+  const firstSegment = selected[0];
+  const lastSegment = selected[selected.length - 1];
+  const isReverse = state.direction === "reverse";
+  const startStamp = getStampById(isReverse ? getSegmentToId(lastSegment) : getSegmentFromId(firstSegment));
+  const endStamp = getStampById(isReverse ? getSegmentFromId(firstSegment) : getSegmentToId(lastSegment));
+  if (!hasCoordinates(startStamp) || !hasCoordinates(endStamp)) return null;
+  const totals = sumSegments(selected);
+
+  return {
+    start: { name: startStamp.name, lat: startStamp.lat, lng: startStamp.lng },
+    end: { name: endStamp.name, lat: endStamp.lat, lng: endStamp.lng },
+    minutes: isReverse ? totals.reverseMinutes : totals.minutes,
+  };
+}
+
+function getSelectedSegmentsInOrder() {
+  const selectedIds = new Set(state.selectedSegments);
+  return segments.filter((segment) => selectedIds.has(segment.id));
+}
+
+function getTravelRouteKey(selected, selectedTotals) {
+  if (!selected.length) return "";
+  return [
+    activeTrailId,
+    state.direction,
+    selected[0].id,
+    selected[selected.length - 1].id,
+    selectedTotals.distance.toFixed(1),
+  ].join(":");
+}
+
+function parseTravelStartTime() {
+  const value = document.querySelector("#travelStartTime")?.value;
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function hasCoordinates(stamp) {
+  return Number.isFinite(stamp?.lat) && Number.isFinite(stamp?.lng);
+}
+
+function formatDateTimeLocal(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function toTransitousDateTime(date) {
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absOffset = Math.abs(offsetMinutes);
+  const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, "0");
+  const offsetMins = String(absOffset % 60).padStart(2, "0");
+  return `${formatDateTimeLocal(date)}:00${sign}${offsetHours}:${offsetMins}`;
+}
+
+function formatClock(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "--:--";
+  return date.toLocaleTimeString("hu-HU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function toggleDirection() {
