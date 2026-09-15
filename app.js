@@ -606,11 +606,12 @@ function renderLists() {
 }
 
 function bindControls() {
-  document.querySelector("#deselectButton").addEventListener("click", deselectAllSegments);
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan"));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
-  document.querySelector("#directionToggle").addEventListener("click", toggleDirection);
+  document.querySelectorAll("[data-direction]").forEach((button) => {
+    button.addEventListener("click", () => setDirection(button.dataset.direction));
+  });
   document.querySelector("#travelButton").addEventListener("click", handleTravelRequest);
   document.addEventListener("click", handleSuggestionClick);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
@@ -808,7 +809,7 @@ function updateSummaryAndProfile() {
   document
     .querySelector(".elevation-header")
     .setAttribute("title", selected.length > 0 ? "Zoom to selected route" : "");
-  syncDirectionToggle();
+  syncDirectionControls();
   syncTravelPanel(selected, selectedTotals);
 
   renderElevation(selected);
@@ -1289,23 +1290,19 @@ function formatClock(value) {
   });
 }
 
-function toggleDirection() {
-  state.direction = state.direction === "reverse" ? "forward" : "reverse";
+function setDirection(direction) {
+  if (!["forward", "reverse"].includes(direction) || state.direction === direction) return;
+  state.direction = direction;
   saveState();
   updateSummaryAndProfile();
 }
 
-function syncDirectionToggle() {
-  const button = document.querySelector("#directionToggle");
-  const isReverse = state.direction === "reverse";
-  button.classList.toggle("active", isReverse);
-  button.setAttribute("aria-pressed", String(isReverse));
-  button.textContent = isReverse ? "Reverse E-W" : "Forward W-E";
-  button.setAttribute(
-    "aria-label",
-    isReverse ? "Current plan direction is reverse, east to west" : "Current plan direction is forward, west to east",
-  );
-  button.setAttribute("title", "Tap to switch route direction");
+function syncDirectionControls() {
+  document.querySelectorAll("[data-direction]").forEach((button) => {
+    const isActive = button.dataset.direction === state.direction;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
 
 function syncCompletedSegmentsFromStamps() {
@@ -1556,7 +1553,12 @@ function selectNearestSegment(event) {
     }
   });
 
-  if (nearestSegment && nearestDistance <= 22) toggleSegment(nearestSegment.id);
+  if (nearestSegment && nearestDistance <= 22) {
+    toggleSegment(nearestSegment.id);
+    return;
+  }
+
+  if (state.selectedSegments.length) deselectAllSegments();
 }
 
 function pointToSegmentDistance(point, start, end) {
