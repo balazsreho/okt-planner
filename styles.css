@@ -524,51 +524,9 @@ h2 {
   box-shadow: inset 0 0 0 1px rgba(var(--trail-rgb), 0.18);
 }
 
-.day-suggestions {
-  margin-bottom: 10px;
-  border: 1px solid var(--glass-line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.32);
-  overflow: hidden;
-}
-
-.day-suggestions summary {
-  min-height: 40px;
-  padding: 10px 13px;
-  color: var(--trail-dark);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 850;
-  list-style-position: inside;
-}
-
-.day-suggestions label {
-  display: grid;
-  gap: 5px;
-  padding: 0 12px 10px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.day-suggestions select {
-  width: 100%;
-  min-height: 38px;
-  min-width: 0;
-  padding: 0 34px 0 12px;
-  border: 1px solid var(--glass-line);
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.5);
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 800;
-}
-
 .suggestion-list {
   display: grid;
   gap: 8px;
-  padding: 0 12px 12px;
 }
 
 .suggestion-card {
@@ -620,6 +578,36 @@ h2 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.stamp-popup {
+  display: grid;
+  width: min(260px, 70vw);
+  gap: 8px;
+}
+
+.stamp-popup > strong {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.stamp-popup > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stamp-popup .suggestion-card {
+  padding: 9px;
+}
+
+.stamp-popup .suggestion-card strong {
+  font-size: 13px;
+}
+
+.leaflet-popup-content {
+  margin: 12px;
 }
 
 .side-pane {
