@@ -51,6 +51,22 @@
               <span id="profileMeta">Stats 2026-09-10</span>
             </div>
             <svg id="elevationChart" viewBox="0 0 900 170" role="img" aria-label="Elevation chart"></svg>
+            <details class="travel-panel" id="travelPanel" aria-label="Public transport estimate">
+              <summary>Travel from Budapest</summary>
+              <div class="travel-controls">
+                <label>
+                  <span>Leave Budapest</span>
+                  <input id="travelStartTime" type="datetime-local" />
+                </label>
+                <button class="travel-button" id="travelButton" type="button">Check travel</button>
+              </div>
+              <div class="travel-results" id="travelResults">
+                Select a route to estimate public transport from Budapest.
+              </div>
+              <a class="travel-source" href="https://transitous.org/sources/" target="_blank" rel="noreferrer">
+                Transit data by Transitous
+              </a>
+            </details>
           </div>
         </section>
       </section>

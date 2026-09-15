@@ -488,6 +488,122 @@ h2 {
   height: 180px;
 }
 
+.travel-panel {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--glass-line);
+}
+
+.travel-panel summary {
+  color: var(--trail-dark);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 850;
+  list-style-position: inside;
+}
+
+.travel-panel[open] {
+  display: grid;
+  gap: 8px;
+}
+
+.travel-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.travel-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.travel-controls input {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--glass-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.travel-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(var(--trail-rgb), 0.28);
+  border-radius: 12px;
+  background: rgba(var(--trail-rgb), 0.14);
+  color: var(--trail-dark);
+  font-size: 13px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.travel-button:disabled {
+  opacity: 0.58;
+}
+
+.travel-results {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.travel-row {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--glass-line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.travel-row strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.travel-row span,
+.travel-row small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-total {
+  color: var(--trail-dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.travel-source {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.travel-source:hover {
+  color: var(--trail-dark);
+}
+
+.travel-error {
+  color: #a23535;
+}
+
 .heading-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1113,6 +1229,36 @@ h2 {
 
   .stat-label {
     font-size: 9px;
+  }
+
+  .travel-panel {
+    gap: 6px;
+    margin-top: 5px;
+    padding-top: 5px;
+  }
+
+  .travel-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .travel-controls input,
+  .travel-button {
+    min-height: 32px;
+    font-size: 12px;
+  }
+
+  .travel-results {
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .travel-row {
+    padding: 6px 8px;
+  }
+
+  .travel-source {
+    font-size: 10px;
   }
 
   .leaflet-bottom {
