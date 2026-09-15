@@ -7,6 +7,11 @@ const trailPalettes = {
   ak: { color: "#23864a", dark: "#145c33", rgb: "35, 134, 74" },
   rpddk: { color: "#d6a100", dark: "#735600", rgb: "214, 161, 0" },
 };
+const daySuggestionBands = [
+  { key: "easy", label: "Easy", minDistance: 8, idealDistance: 12, maxDistance: 16 },
+  { key: "normal", label: "Normal", minDistance: 16, idealDistance: 20, maxDistance: 25 },
+  { key: "long", label: "Long", minDistance: 24, idealDistance: 30, maxDistance: 36 },
+];
 const fallbackPalette = trailPalettes.okt;
 const officialRouteUrl =
   "https://turistaterkepek.hu/server/rest/services/orszagos_kektura/kekturahu/MapServer/1/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson";
@@ -520,6 +525,8 @@ function renderLists() {
       `,
     )
     .join("");
+  renderSuggestionPlanner();
+
   stampList.innerHTML = sectionGroups
     .map(
       (group) => `
@@ -583,6 +590,8 @@ function bindControls() {
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
   document.querySelector("#directionToggle").addEventListener("click", toggleDirection);
+  document.querySelector("#suggestionStartSelect").addEventListener("change", renderSuggestionCards);
+  document.querySelector("#suggestionList").addEventListener("click", handleSuggestionClick);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
   document.querySelectorAll("[data-trail]").forEach((button) => {
@@ -778,6 +787,8 @@ function updateSummaryAndProfile() {
     .querySelector(".elevation-header")
     .setAttribute("title", selected.length > 0 ? "Zoom to selected route" : "");
   syncDirectionToggle();
+  syncSuggestionStartFromSelection();
+  renderSuggestionCards();
 
   renderElevation(selected);
 }
@@ -902,6 +913,167 @@ function deselectAllSegments() {
   updateChangedSelectedSegments(before, new Set());
   saveState();
   updateSummaryAndProfile();
+}
+
+function renderSuggestionPlanner() {
+  const select = document.querySelector("#suggestionStartSelect");
+  select.innerHTML = getOrderedStampOptions()
+    .map((stamp, index) => `<option value="${index}">${stamp.name}</option>`)
+    .join("");
+  syncSuggestionStartFromSelection();
+  renderSuggestionCards();
+}
+
+function syncSuggestionStartFromSelection() {
+  const select = document.querySelector("#suggestionStartSelect");
+  if (!select?.options.length || document.activeElement === select) return;
+  select.value = String(getSuggestedStartStampIndex());
+}
+
+function getSuggestedStartStampIndex() {
+  const selectedIndexes = state.selectedSegments
+    .map((id) => segmentById.get(id)?.number - 1)
+    .filter((index) => Number.isFinite(index))
+    .sort((a, b) => a - b);
+
+  if (selectedIndexes.length) {
+    return state.direction === "reverse"
+      ? Math.min(selectedIndexes[selectedIndexes.length - 1] + 1, segments.length)
+      : selectedIndexes[0];
+  }
+
+  const nextIncompleteIndex = segments.findIndex((segment) => !state.completedSegments.includes(segment.id));
+  if (nextIncompleteIndex === -1) return 0;
+  return state.direction === "reverse" ? Math.min(nextIncompleteIndex + 1, segments.length) : nextIncompleteIndex;
+}
+
+function renderSuggestionCards() {
+  const list = document.querySelector("#suggestionList");
+  const select = document.querySelector("#suggestionStartSelect");
+  if (!list || !select) return;
+
+  const startStampIndex = Number(select.value);
+  const suggestions = getDaySuggestions(startStampIndex);
+  if (!suggestions.length) {
+    list.innerHTML = '<p class="suggestion-empty">Pick a stamp with connected trail ahead.</p>';
+    return;
+  }
+
+  list.innerHTML = suggestions
+    .map(
+      (suggestion) => `
+        <button class="suggestion-card" type="button" data-suggestion-start="${suggestion.startIndex}" data-suggestion-end="${suggestion.endIndex}">
+          <span>
+            <small>${suggestion.label}</small>
+            <strong>${suggestion.from} - ${suggestion.to}</strong>
+          </span>
+          <span class="suggestion-stats">
+            <span>${suggestion.totals.distance.toFixed(1)} km</span>
+            <span>${formatMinutes(suggestion.minutes)}</span>
+            <span>+${suggestion.up} / -${suggestion.down} m</span>
+          </span>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function getDaySuggestions(startStampIndex) {
+  if (!Number.isFinite(startStampIndex)) return [];
+  const isReverse = state.direction === "reverse";
+  const suggestions = [];
+  const usedRanges = new Set();
+
+  daySuggestionBands.forEach((band) => {
+    const suggestion = getSuggestionsForBand(startStampIndex, band, isReverse).find((candidate) => {
+      const rangeKey = `${candidate.startIndex}:${candidate.endIndex}`;
+      return !usedRanges.has(rangeKey);
+    });
+    if (!suggestion) return;
+    const rangeKey = `${suggestion.startIndex}:${suggestion.endIndex}`;
+    usedRanges.add(rangeKey);
+    suggestions.push(suggestion);
+  });
+
+  return suggestions;
+}
+
+function getSuggestionsForBand(startStampIndex, band, isReverse) {
+  const candidates = [];
+  let distance = 0;
+  const maxDistance = band.maxDistance + 6;
+
+  if (isReverse) {
+    for (let cursor = startStampIndex - 1; cursor >= 0; cursor -= 1) {
+      distance += segments[cursor].distance;
+      const candidate = buildSuggestion(cursor, startStampIndex - 1, band, isReverse);
+      if (candidate) candidates.push(candidate);
+      if (distance > maxDistance) break;
+    }
+    return candidates.sort((a, b) => a.score - b.score);
+  }
+
+  for (let cursor = startStampIndex; cursor < segments.length; cursor += 1) {
+    distance += segments[cursor].distance;
+    const candidate = buildSuggestion(startStampIndex, cursor, band, isReverse);
+    if (candidate) candidates.push(candidate);
+    if (distance > maxDistance) break;
+  }
+
+  return candidates.sort((a, b) => a.score - b.score);
+}
+
+function buildSuggestion(startIndex, endIndex, band, isReverse) {
+  const routeSegments = segments.slice(startIndex, endIndex + 1);
+  if (!routeSegments.length) return null;
+  const totals = sumSegments(routeSegments);
+  const minutes = isReverse ? totals.reverseMinutes : totals.minutes;
+  const up = isReverse ? totals.down : totals.up;
+  const down = isReverse ? totals.up : totals.down;
+  const distanceScore = Math.abs(totals.distance - band.idealDistance) * 3;
+  const rangeScore =
+    Math.max(band.minDistance - totals.distance, 0) * 12 + Math.max(totals.distance - band.maxDistance, 0) * 6;
+  const timeScore = Math.max(minutes - 520, 0) / 30;
+  const climbScore = Math.max(up - 900, 0) / 120;
+  const score = distanceScore + rangeScore + timeScore + climbScore;
+  const first = routeSegments[0];
+  const last = routeSegments[routeSegments.length - 1];
+
+  return {
+    ...band,
+    startIndex,
+    endIndex,
+    totals,
+    minutes,
+    up,
+    down,
+    score,
+    from: isReverse ? last.to : first.from,
+    to: isReverse ? first.from : last.to,
+  };
+}
+
+function handleSuggestionClick(event) {
+  const button = event.target.closest("[data-suggestion-start]");
+  if (!button) return;
+  const startIndex = Number(button.dataset.suggestionStart);
+  const endIndex = Number(button.dataset.suggestionEnd);
+  if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) return;
+
+  const before = new Set(state.selectedSegments);
+  state.selectedSegments = segmentIdsBetween(startIndex, endIndex);
+  updateChangedSelectedSegments(before, new Set(state.selectedSegments));
+  saveState();
+  updateSummaryAndProfile();
+  fitSelectedSegments();
+}
+
+function getOrderedStampOptions() {
+  if (!segments.length) return [];
+  return [
+    { name: segments[0].from },
+    ...segments.map((segment) => ({ name: segment.to })),
+  ];
 }
 
 function toggleDirection() {
