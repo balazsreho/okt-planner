@@ -501,6 +501,42 @@ h2 {
   margin-bottom: 10px;
 }
 
+.day-planner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.day-planner select {
+  width: 100%;
+  min-height: 38px;
+  min-width: 0;
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.52);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.day-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.day-presets button {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(var(--trail-rgb), 0.28);
+  border-radius: 13px;
+  background: rgba(var(--trail-rgb), 0.12);
+  color: var(--trail-dark);
+  font-size: 13px;
+  font-weight: 850;
+}
+
 .side-pane {
   z-index: 600;
   display: flex;
