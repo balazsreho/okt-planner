@@ -581,6 +581,7 @@ function bindControls() {
   document.querySelector("#deselectButton").addEventListener("click", deselectAllSegments);
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan"));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
+  document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
   document.querySelectorAll("[data-trail]").forEach((button) => {
@@ -766,6 +767,10 @@ function updateSummaryAndProfile() {
   document.querySelector("#remainingDistance").textContent = `${Math.max(allTotals.distance - completedTotals.distance, 0).toFixed(1)} km remaining`;
   document.querySelector("#progressRing").textContent = `${donePercent}%`;
   document.querySelector("#progressRing").style.setProperty("--progress", `${donePercent}%`);
+  document.querySelector(".elevation-header").classList.toggle("is-clickable", selected.length > 0);
+  document
+    .querySelector(".elevation-header")
+    .setAttribute("title", selected.length > 0 ? "Zoom to selected route" : "");
 
   renderElevation(selected);
 }
@@ -1158,6 +1163,18 @@ function switchTab(tab) {
 function fitMap() {
   const bounds = L.latLngBounds(segments.flatMap((segment) => segment.points));
   map.fitBounds(bounds, { padding: [36, 36] });
+}
+
+function fitSelectedSegments() {
+  const selected = segments.filter((segment) => state.selectedSegments.includes(segment.id));
+  if (!selected.length) return;
+  const points = selected.flatMap((segment) => segment.points);
+  if (!points.length) return;
+  const isMobile = window.matchMedia("(max-width: 860px)").matches;
+  map.fitBounds(L.latLngBounds(points), {
+    paddingTopLeft: isMobile ? [24, 72] : [42, 42],
+    paddingBottomRight: isMobile ? [24, 280] : [42, 260],
+  });
 }
 
 function refreshMapLayout(shouldFit) {
