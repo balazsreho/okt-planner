@@ -528,14 +528,6 @@ h2 {
   text-overflow: ellipsis;
 }
 
-.route-topline .direction-stat {
-  flex: 0 0 118px;
-  padding: 8px;
-  border: 1px solid var(--glass-line);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.28);
-}
-
 #elevationChart {
   display: block;
   width: 100%;
@@ -912,6 +904,52 @@ h2 {
   font-weight: 700;
 }
 
+.popup-direction-switch {
+  display: grid;
+  gap: 8px;
+}
+
+.popup-direction-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.popup-direction {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--glass-line);
+  border-radius: 12px;
+  background: rgba(218, 229, 238, 0.38);
+}
+
+.popup-direction-label {
+  display: grid;
+  min-height: 28px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.popup-dir-forward:checked ~ .popup-direction .forward-label,
+.popup-dir-reverse:checked ~ .popup-direction .reverse-label {
+  background: rgba(var(--trail-rgb), 0.18);
+  color: var(--trail-dark);
+}
+
+.popup-suggestion-pane {
+  display: none;
+}
+
+.popup-dir-forward:checked ~ .forward-pane,
+.popup-dir-reverse:checked ~ .reverse-pane {
+  display: grid;
+}
+
 .stamp-popup .suggestion-card {
   padding: 9px;
 }
@@ -1025,6 +1063,26 @@ h2 {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.52);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
+}
+
+.more-card + .more-card {
+  margin-top: 10px;
+}
+
+.setting-row {
+  display: grid;
+  gap: 10px;
+}
+
+.setting-row > span:first-child {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.setting-row .direction-segmented {
+  margin-top: 0;
 }
 
 .panel-view {
@@ -1464,18 +1522,6 @@ h2 {
   .route-topline {
     align-items: start;
     gap: 8px;
-  }
-
-  .route-topline .direction-stat {
-    flex: 0 0 92px;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .route-topline .direction-stat .stat-label {
-    display: none;
   }
 
   .direction-segmented {
