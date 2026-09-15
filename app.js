@@ -1118,9 +1118,10 @@ function syncTravelPanel(selected, selectedTotals) {
   const button = document.querySelector("#travelButton");
   const dockButton = document.querySelector("#dockTravelButton");
   const dockSummary = document.querySelector("#dockTravelSummary");
+  const routeLabel = document.querySelector("#travelRouteLabel");
   const results = document.querySelector("#travelResults");
   const panel = document.querySelector("#travelPanel");
-  if (!button || !dockButton || !dockSummary || !results || !panel) return;
+  if (!button || !dockButton || !dockSummary || !routeLabel || !results || !panel) return;
 
   const canCheck = selected.length > 0 && selected.every((segment) => segment.points?.length);
   button.disabled = !canCheck;
@@ -1132,17 +1133,20 @@ function syncTravelPanel(selected, selectedTotals) {
     results.removeAttribute("data-route-key");
     results.textContent = "Select a route to estimate public transport from Budapest.";
     dockSummary.textContent = "Select a route";
+    routeLabel.textContent = "Select a route";
     return;
   }
 
+  routeLabel.textContent = formatTravelRouteLabel(selected);
+
   if (!results.dataset.routeKey) {
-    dockSummary.textContent = "Check from Budapest";
+    dockSummary.textContent = "Find connections";
   }
 
   if (results.dataset.routeKey && results.dataset.routeKey !== panel.dataset.routeKey) {
     results.textContent = "Check public transport for this selected route.";
     results.removeAttribute("data-route-key");
-    dockSummary.textContent = "Check from Budapest";
+    dockSummary.textContent = "Find connections";
   }
 }
 
@@ -1189,7 +1193,7 @@ async function handleTravelRequest() {
   }
 
   button.disabled = true;
-  button.textContent = "Checking...";
+  button.textContent = "Searching...";
   updateDockTravelSummary("Checking...");
   results.innerHTML = '<span class="travel-muted">Looking for Budapest connections...</span>';
 
@@ -1214,7 +1218,7 @@ async function handleTravelRequest() {
     updateDockTravelSummary("Travel unavailable");
   } finally {
     button.disabled = false;
-    button.textContent = "Check travel";
+    button.textContent = "Find connections";
   }
 }
 
@@ -1273,7 +1277,12 @@ async function fetchTransitItinerary(from, to, departAt, isReturnTrip) {
 function renderTravelResults(outbound, inbound, route, returnDepartAt) {
   const totalMinutes =
     Math.round(((outbound?.duration || 0) + (inbound?.duration || 0)) / 60) + route.minutes + hikeBufferMinutes;
-  const total = outbound?.empty || inbound?.empty ? "" : `<div class="travel-total">Full day: ${formatMinutes(totalMinutes)}</div>`;
+  const total = outbound?.empty || inbound?.empty ? "" : `
+    <div class="travel-total">
+      <span>Full day</span>
+      <strong>${formatMinutes(totalMinutes)}</strong>
+    </div>
+  `;
   return `
     ${renderTravelRow(outbound)}
     ${renderTravelRow(inbound, returnDepartAt)}
@@ -1286,19 +1295,30 @@ function renderTravelRow(item, requestedTime) {
     const suffix = requestedTime ? ` after ${formatClock(requestedTime)}` : "";
     return `
       <div class="travel-row">
-        <strong>${escapeHtml(item?.label || "Travel")}</strong>
-        <span>No public transport route found${suffix}.</span>
+        <span class="travel-row-label">${escapeHtml(item?.label || "Travel")}</span>
+        <strong>No route found</strong>
+        <small>No public transport route found${suffix}.</small>
       </div>
     `;
   }
 
   return `
     <div class="travel-row">
-      <strong>${escapeHtml(item.label)}</strong>
-      <span>${formatMinutes(Math.round(item.duration / 60))} · ${formatClock(item.startTime)}-${formatClock(item.endTime)} · ${item.transfers} transfers</span>
+      <span class="travel-row-label">${escapeHtml(item.label)}</span>
+      <strong>${formatMinutes(Math.round(item.duration / 60))}</strong>
+      <span>${formatClock(item.startTime)}-${formatClock(item.endTime)} · ${item.transfers} transfers</span>
       <small>${escapeHtml(item.summary || "Public transport")}</small>
     </div>
   `;
+}
+
+function formatTravelRouteLabel(selected) {
+  const firstSegment = selected[0];
+  const lastSegment = selected[selected.length - 1];
+  if (!firstSegment || !lastSegment) return "Select a route";
+  return state.direction === "reverse"
+    ? `${lastSegment.to} -> ${firstSegment.from}`
+    : `${firstSegment.from} -> ${lastSegment.to}`;
 }
 
 function summarizeTransitLegs(legs) {
@@ -1670,7 +1690,11 @@ function switchTab(tab, shouldExpand = false) {
   document.querySelector("#progressTab").classList.toggle("active", view === "progress");
   document.querySelector("#moreTab").classList.toggle("active", view === "more");
   document.querySelectorAll(".bottom-nav .nav-item").forEach((button) => {
-    button.toggleAttribute("aria-current", button.classList.contains("active"));
+    if (button.classList.contains("active")) {
+      button.setAttribute("aria-current", "page");
+    } else {
+      button.removeAttribute("aria-current");
+    }
   });
   document.querySelector("#planView").classList.toggle("active", view === "plan");
   document.querySelector("#progressView").classList.toggle("active", view === "progress");

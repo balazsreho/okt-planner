@@ -61,7 +61,7 @@
             </div>
             <svg id="elevationChart" viewBox="0 0 900 170" role="img" aria-label="Elevation chart"></svg>
             <button class="dock-travel-button" id="dockTravelButton" type="button" disabled>
-              <span>Travel</span>
+              <span>Transit</span>
               <strong id="dockTravelSummary">Select a route</strong>
             </button>
           </div>
@@ -80,13 +80,19 @@
 
         <section class="panel-view active" id="planView">
           <details class="travel-panel" id="travelPanel" aria-label="Public transport estimate">
-            <summary>Travel from Budapest</summary>
+            <summary>
+              <span class="travel-summary-icon" aria-hidden="true"></span>
+              <span>
+                <strong>Budapest transit</strong>
+                <small id="travelRouteLabel">Select a route</small>
+              </span>
+            </summary>
             <div class="travel-controls">
               <label>
                 <span>Leave Budapest</span>
                 <input id="travelStartTime" type="datetime-local" />
               </label>
-              <button class="travel-button" id="travelButton" type="button">Check travel</button>
+              <button class="travel-button" id="travelButton" type="button">Find connections</button>
             </div>
             <div class="travel-results" id="travelResults">
               Select a route to estimate public transport from Budapest.
