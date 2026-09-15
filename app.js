@@ -412,6 +412,7 @@ function loadState(trailId = activeTrailId) {
     selectedSegments: [],
     completedSegments: [],
     stamped: [],
+    direction: "forward",
   };
 
   try {
@@ -586,6 +587,7 @@ function bindControls() {
   document.querySelectorAll("[data-day-distance]").forEach((button) => {
     button.addEventListener("click", () => selectDayPlan(Number(button.dataset.dayDistance)));
   });
+  document.querySelector("#directionToggle").addEventListener("click", toggleDirection);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
   document.querySelectorAll("[data-trail]").forEach((button) => {
@@ -762,11 +764,16 @@ function updateSummaryAndProfile() {
   const completedTotals = sumSegments(completed);
   const allTotals = sumSegments(segments);
   const donePercent = allTotals.distance ? Math.round((completedTotals.distance / allTotals.distance) * 100) : 0;
+  const isReverse = state.direction === "reverse";
 
   document.querySelector("#selectedDistance").textContent = `${selectedTotals.distance.toFixed(1)} km`;
-  document.querySelector("#selectedTime").textContent = formatMinutes(selectedTotals.minutes);
-  document.querySelector("#selectedReturnTime").textContent = formatMinutes(selectedTotals.reverseMinutes);
-  document.querySelector("#selectedElevation").textContent = `${selectedTotals.up} / ${selectedTotals.down} m`;
+  document.querySelector("#selectedTimeLabel").textContent = isReverse ? "Reverse" : "Forward";
+  document.querySelector("#selectedTime").textContent = formatMinutes(isReverse ? selectedTotals.reverseMinutes : selectedTotals.minutes);
+  document.querySelector("#selectedReturnTimeLabel").textContent = isReverse ? "Forward est." : "Reverse est.";
+  document.querySelector("#selectedReturnTime").textContent = formatMinutes(isReverse ? selectedTotals.minutes : selectedTotals.reverseMinutes);
+  document.querySelector("#selectedElevation").textContent = isReverse
+    ? `${selectedTotals.down} / ${selectedTotals.up} m`
+    : `${selectedTotals.up} / ${selectedTotals.down} m`;
   document.querySelector("#completedDistance").textContent = `${completedTotals.distance.toFixed(1)} km completed`;
   document.querySelector("#remainingDistance").textContent = `${Math.max(allTotals.distance - completedTotals.distance, 0).toFixed(1)} km remaining`;
   document.querySelector("#progressRing").textContent = `${donePercent}%`;
@@ -776,6 +783,7 @@ function updateSummaryAndProfile() {
     .querySelector(".elevation-header")
     .setAttribute("title", selected.length > 0 ? "Zoom to selected route" : "");
   syncDayPlannerStart();
+  syncDirectionToggle();
 
   renderElevation(selected);
 }
@@ -922,6 +930,20 @@ function syncDayPlannerStart() {
   const nextIncompleteIndex = segments.findIndex((segment) => !state.completedSegments.includes(segment.id));
   const targetIndex = selectedIndexes.length ? Math.min(...selectedIndexes) : Math.max(nextIncompleteIndex, 0);
   select.value = String(Math.min(targetIndex, segments.length - 1));
+}
+
+function toggleDirection() {
+  state.direction = state.direction === "reverse" ? "forward" : "reverse";
+  saveState();
+  updateSummaryAndProfile();
+}
+
+function syncDirectionToggle() {
+  const button = document.querySelector("#directionToggle");
+  const isReverse = state.direction === "reverse";
+  button.classList.toggle("active", isReverse);
+  button.setAttribute("aria-pressed", String(isReverse));
+  button.textContent = isReverse ? "Forward plan" : "Reverse plan";
 }
 
 function selectDayPlan(targetDistance) {
@@ -1072,7 +1094,8 @@ function renderElevation(profileSegments) {
   const pad = { top: 18, right: 28, bottom: 34, left: 50 };
   const plotWidth = width - pad.left - pad.right;
   const plotHeight = height - pad.top - pad.bottom;
-  const profile = buildProfile(profileSegments);
+  const isReverse = state.direction === "reverse";
+  const profile = buildProfile(profileSegments, isReverse);
   const minAlt = Math.floor((Math.min(...profile.map((point) => point.altitude)) - 40) / 50) * 50;
   const maxAlt = Math.ceil((Math.max(...profile.map((point) => point.altitude)) + 40) / 50) * 50;
   const lastProfilePoint = profile[profile.length - 1];
@@ -1101,7 +1124,7 @@ function renderElevation(profileSegments) {
 
   const firstSegment = profileSegments[0];
   const lastSegment = profileSegments[profileSegments.length - 1];
-  const title = `${firstSegment.from} - ${lastSegment.to}`;
+  const title = isReverse ? `${lastSegment.to} - ${firstSegment.from}` : `${firstSegment.from} - ${lastSegment.to}`;
   document.querySelector("#profileTitle").textContent = title;
   document.querySelector("#profileMeta").textContent = `${geometrySource} · stats ${getActiveDataVersion()} · ${Math.round(minAlt)}-${Math.round(maxAlt)} m`;
 }
@@ -1126,19 +1149,23 @@ function buildGridLines(minAlt, maxAlt, maxDistance, xScale, yScale, pad, plotWi
   return markup;
 }
 
-function buildProfile(profileSegments) {
+function buildProfile(profileSegments, isReverse = false) {
   const profile = [];
   let distance = 0;
-  profileSegments.forEach((segment, segmentIndex) => {
+  const orderedSegments = isReverse ? [...profileSegments].reverse() : profileSegments;
+  orderedSegments.forEach((segment, segmentIndex) => {
     const samples = segment.elevationSamples.length
       ? segment.elevationSamples
       : generateElevationSamples(segment, getStampById(getSegmentFromId(segment)).altitude, getStampById(getSegmentToId(segment)).altitude);
-    samples.forEach((sample, sampleIndex) => {
+    const orderedSamples = isReverse
+      ? samples.map((sample) => ({ ...sample, distance: segment.distance - sample.distance })).reverse()
+      : samples;
+    orderedSamples.forEach((sample, sampleIndex) => {
       if (segmentIndex > 0 && sampleIndex === 0) return;
       profile.push({
         distance: distance + sample.distance,
         altitude: sample.altitude,
-        stamp: sampleIndex === 0 ? segment.from : sampleIndex === samples.length - 1 ? segment.to : null,
+        stamp: sampleIndex === 0 ? (isReverse ? segment.to : segment.from) : sampleIndex === orderedSamples.length - 1 ? (isReverse ? segment.from : segment.to) : null,
       });
     });
     distance += segment.distance;
