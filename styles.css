@@ -20,7 +20,9 @@
   --shadow: 0 22px 70px rgba(15, 34, 56, 0.26);
   --shadow-soft: 0 10px 30px rgba(15, 34, 56, 0.18);
   --sheet-height: 34dvh;
+  --sheet-min: 112px;
   --sheet-gap: 10px;
+  --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
 * {
@@ -785,6 +787,10 @@ h2 {
   display: none;
 }
 
+.sheet-controls {
+  display: block;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1048,6 +1054,10 @@ h2 {
 }
 
 @media (max-width: 860px) {
+  :root {
+    --sheet-height: var(--sheet-min);
+  }
+
   html,
   body,
   .app-shell {
@@ -1075,7 +1085,7 @@ h2 {
     left: 0;
     width: 100vw;
     max-width: 100vw;
-    height: clamp(220px, var(--sheet-height), calc(100dvh - 56px));
+    height: clamp(var(--sheet-min), var(--sheet-height), calc(100dvh - 56px));
     padding-bottom: 0;
     border-left: 0;
     border-top: 1px solid var(--glass-border);
@@ -1106,22 +1116,36 @@ h2 {
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
   }
 
-  .tabs {
+  .sheet-controls {
+    display: grid;
     gap: 4px;
     margin: 0 16px 8px;
     padding: 4px;
-    border-bottom: 0;
     border: 1px solid var(--glass-line);
-    border-radius: 18px;
+    border-radius: 20px;
     background: rgba(218, 229, 238, 0.34);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
   }
 
+  .tabs {
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    border-bottom: 0;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    box-shadow: none;
+  }
+
   .trail-switcher {
     flex: 0 0 auto;
-    margin: 0 16px 6px;
-    padding: 3px;
+    margin: 0;
+    padding: 0;
+    border: 0;
     border-radius: 16px;
+    background: transparent;
+    box-shadow: none;
   }
 
   .trail-option {
@@ -1179,10 +1203,10 @@ h2 {
   }
 
   .elevation-dock {
-    bottom: calc(clamp(220px, var(--sheet-height), calc(100dvh - 56px)) + var(--sheet-gap));
+    bottom: calc(clamp(var(--sheet-min), var(--sheet-height), calc(100dvh - 56px)) + var(--sheet-gap));
     width: calc(100% - 20px);
     min-height: 132px;
-    max-height: calc(100dvh - clamp(220px, var(--sheet-height), calc(100dvh - 56px)) - var(--sheet-gap) - max(64px, env(safe-area-inset-top)));
+    max-height: calc(100dvh - clamp(var(--sheet-min), var(--sheet-height), calc(100dvh - 56px)) - var(--sheet-gap) - max(64px, env(safe-area-inset-top)));
     grid-template-columns: 1fr;
     gap: 7px;
     padding: 9px 10px 8px;
@@ -1322,15 +1346,14 @@ h2 {
 
 @media (max-width: 520px) {
   :root {
-    --sheet-height: 30dvh;
     --sheet-gap: 8px;
   }
 
   .tabs {
-    margin-right: 14px;
-    margin-left: 14px;
-    padding-right: 14px;
-    padding-left: 14px;
+    margin-right: 0;
+    margin-left: 0;
+    padding-right: 0;
+    padding-left: 0;
   }
 
   .progress-summary {

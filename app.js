@@ -606,8 +606,8 @@ function renderLists() {
 }
 
 function bindControls() {
-  document.querySelector("#planTab").addEventListener("click", () => switchTab("plan"));
-  document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress"));
+  document.querySelector("#planTab").addEventListener("click", () => switchTab("plan", true));
+  document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress", true));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
   document.querySelectorAll("[data-direction]").forEach((button) => {
     button.addEventListener("click", () => setDirection(button.dataset.direction));
@@ -663,7 +663,7 @@ function initBottomSheet() {
 
   const getSnapHeights = () => {
     const viewport = window.innerHeight;
-    return [Math.round(viewport * 0.28), Math.round(viewport * 0.48), Math.round(viewport * 0.84)];
+    return [getCompactSheetHeight(), Math.round(viewport * 0.48), Math.round(viewport * 0.84)];
   };
 
   const setSheetHeight = (height) => {
@@ -718,6 +718,11 @@ function initBottomSheet() {
     setSheetHeight(next);
     refreshMapLayout(false);
   });
+}
+
+function getCompactSheetHeight() {
+  const safeAreaBottom = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--safe-area-bottom")) || 0;
+  return Math.round(112 + safeAreaBottom);
 }
 
 async function loadOfficialGeometry() {
@@ -1132,6 +1137,13 @@ function expandBottomSheetForDetails() {
   if (!window.matchMedia("(max-width: 860px)").matches) return;
   const height = Math.round(window.innerHeight * 0.72);
   document.documentElement.style.setProperty("--sheet-height", `${height}px`);
+}
+
+function expandBottomSheetForLists() {
+  if (!window.matchMedia("(max-width: 860px)").matches) return;
+  const height = Math.round(window.innerHeight * 0.48);
+  document.documentElement.style.setProperty("--sheet-height", `${height}px`);
+  refreshMapLayout(false);
 }
 
 async function handleTravelRequest() {
@@ -1622,11 +1634,12 @@ function pointToSegmentDistance(point, start, end) {
   return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
 }
 
-function switchTab(tab) {
+function switchTab(tab, shouldExpand = false) {
   document.querySelector("#planTab").classList.toggle("active", tab === "plan");
   document.querySelector("#progressTab").classList.toggle("active", tab === "progress");
   document.querySelector("#planView").classList.toggle("active", tab === "plan");
   document.querySelector("#progressView").classList.toggle("active", tab === "progress");
+  if (shouldExpand) expandBottomSheetForLists();
   refreshMapLayout(false);
 }
 

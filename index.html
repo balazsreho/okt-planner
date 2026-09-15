@@ -70,15 +70,17 @@
         <div class="sheet-grabber" id="sheetGrabber" aria-hidden="true">
           <span></span>
         </div>
-        <nav class="trail-switcher" aria-label="Trail">
-          <button class="trail-option active" type="button" data-trail="okt">OKT</button>
-          <button class="trail-option" type="button" data-trail="ak">Alföld</button>
-          <button class="trail-option" type="button" data-trail="rpddk">DDK</button>
-        </nav>
-        <nav class="tabs" aria-label="Views">
-          <button class="tab active" id="planTab" type="button">Plan</button>
-          <button class="tab" id="progressTab" type="button">Progress</button>
-        </nav>
+        <div class="sheet-controls">
+          <nav class="trail-switcher" aria-label="Trail">
+            <button class="trail-option active" type="button" data-trail="okt">OKT</button>
+            <button class="trail-option" type="button" data-trail="ak">Alföld</button>
+            <button class="trail-option" type="button" data-trail="rpddk">DDK</button>
+          </nav>
+          <nav class="tabs" aria-label="Views">
+            <button class="tab active" id="planTab" type="button">Plan</button>
+            <button class="tab" id="progressTab" type="button">Progress</button>
+          </nav>
+        </div>
 
         <section class="panel-view active" id="planView">
           <details class="travel-panel" id="travelPanel" aria-label="Public transport estimate">
