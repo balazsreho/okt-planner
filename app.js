@@ -613,6 +613,7 @@ function bindControls() {
     button.addEventListener("click", () => setDirection(button.dataset.direction));
   });
   document.querySelector("#travelButton").addEventListener("click", handleTravelRequest);
+  document.querySelector("#travelPanel").addEventListener("toggle", syncTravelOpenState);
   document.addEventListener("click", handleSuggestionClick);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
@@ -1078,6 +1079,7 @@ function initTravelControls() {
   tomorrowMorning.setDate(tomorrowMorning.getDate() + 1);
   tomorrowMorning.setHours(7, 0, 0, 0);
   input.value = formatDateTimeLocal(tomorrowMorning);
+  syncTravelOpenState();
 }
 
 function syncTravelPanel(selected, selectedTotals) {
@@ -1098,6 +1100,15 @@ function syncTravelPanel(selected, selectedTotals) {
     results.textContent = "Check public transport for this selected route.";
     results.removeAttribute("data-route-key");
   }
+}
+
+function syncTravelOpenState() {
+  const panel = document.querySelector("#travelPanel");
+  const dock = document.querySelector(".elevation-dock");
+  if (!panel || !dock) return;
+  dock.classList.toggle("travel-open", panel.open);
+  refreshMapLayout(false);
+  setTimeout(() => refreshMapLayout(false), 220);
 }
 
 async function handleTravelRequest() {

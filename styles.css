@@ -427,6 +427,7 @@ h2 {
   display: grid;
   width: min(980px, calc(100% - 32px));
   min-height: 236px;
+  max-height: calc(100dvh - 48px);
   grid-template-columns: 210px minmax(0, 1fr);
   gap: 14px;
   padding: 14px 16px 12px;
@@ -434,7 +435,15 @@ h2 {
   border-radius: 22px;
   background: var(--glass-strong);
   box-shadow: var(--shadow);
+  overflow: hidden;
   transform: translateX(-50%);
+  transition: min-height 180ms ease, max-height 180ms ease, bottom 180ms ease;
+}
+
+.elevation-dock.travel-open {
+  min-height: 360px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .elevation-stats {
@@ -520,6 +529,8 @@ h2 {
 }
 
 .travel-panel summary {
+  min-height: 32px;
+  padding-top: 4px;
   color: var(--trail-dark);
   cursor: pointer;
   font-size: 13px;
@@ -529,7 +540,7 @@ h2 {
 
 .travel-panel[open] {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .travel-controls {
@@ -1137,6 +1148,7 @@ h2 {
     bottom: calc(clamp(220px, var(--sheet-height), calc(100dvh - 56px)) + var(--sheet-gap));
     width: calc(100% - 20px);
     min-height: 132px;
+    max-height: calc(100dvh - clamp(220px, var(--sheet-height), calc(100dvh - 56px)) - var(--sheet-gap) - max(64px, env(safe-area-inset-top)));
     grid-template-columns: 1fr;
     gap: 7px;
     padding: 9px 10px 8px;
@@ -1144,7 +1156,12 @@ h2 {
     border-radius: 22px;
     background: rgba(250, 252, 254, 0.62);
     box-shadow: 0 12px 38px rgba(20, 33, 48, 0.16);
-    transition: bottom 180ms ease;
+    transition: min-height 180ms ease, max-height 180ms ease, bottom 180ms ease;
+  }
+
+  .elevation-dock.travel-open {
+    min-height: min(390px, calc(100dvh - clamp(220px, var(--sheet-height), calc(100dvh - 56px)) - var(--sheet-gap) - max(64px, env(safe-area-inset-top))));
+    overflow-y: auto;
   }
 
   .side-pane.dragging,
@@ -1209,6 +1226,11 @@ h2 {
     padding-top: 5px;
   }
 
+  .travel-panel summary {
+    min-height: 30px;
+    padding-top: 3px;
+  }
+
   .travel-controls {
     gap: 6px;
   }
@@ -1226,6 +1248,14 @@ h2 {
 
   .travel-row {
     padding: 6px 8px;
+  }
+
+  .elevation-dock.travel-open .travel-results {
+    gap: 6px;
+  }
+
+  .elevation-dock.travel-open .travel-row {
+    padding: 8px 9px;
   }
 
   .travel-source {
@@ -1298,6 +1328,10 @@ h2 {
   .elevation-dock {
     width: calc(100% - 16px);
     min-height: 124px;
+  }
+
+  .elevation-dock.travel-open {
+    min-height: min(360px, calc(100dvh - clamp(220px, var(--sheet-height), calc(100dvh - 56px)) - var(--sheet-gap) - max(64px, env(safe-area-inset-top))));
   }
 
   .elevation-stats > div {
