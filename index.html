@@ -19,7 +19,7 @@
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=43" />
   </head>
   <body>
     <main class="app-shell">
@@ -50,13 +50,6 @@
               <div class="elevation-header">
                 <span id="profileTitle">Select segments for elevation</span>
                 <span id="profileMeta">Stats 2026-09-10</span>
-              </div>
-              <div class="direction-stat" aria-label="Route direction">
-                <span class="stat-label">Direction</span>
-                <span class="direction-segmented">
-                  <button type="button" data-direction="forward" aria-pressed="true">W-E</button>
-                  <button type="button" data-direction="reverse" aria-pressed="false">E-W</button>
-                </span>
               </div>
             </div>
             <svg id="elevationChart" viewBox="0 0 900 170" role="img" aria-label="Elevation chart"></svg>
@@ -124,6 +117,16 @@
               <button class="trail-option" type="button" data-trail="rpddk">DDK</button>
             </nav>
           </div>
+          <div class="more-card">
+            <span class="eyebrow">Default Direction</span>
+            <div class="setting-row">
+              <span>Used for new plans and stamp suggestions</span>
+              <span class="direction-segmented">
+                <button type="button" data-direction="forward" aria-pressed="true">W-E</button>
+                <button type="button" data-direction="reverse" aria-pressed="false">E-W</button>
+              </span>
+            </div>
+          </div>
         </section>
 
         <nav class="bottom-nav" aria-label="Primary">
@@ -163,7 +166,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./trail-route-data.js"></script>
-    <script src="./app.js"></script>
+    <script src="./trail-route-data.js?v=43"></script>
+    <script src="./app.js?v=43"></script>
   </body>
 </html>

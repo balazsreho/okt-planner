@@ -619,6 +619,7 @@ function bindControls() {
   document.querySelector("#dockTravelButton").addEventListener("click", openTravelDetails);
   document.querySelector("#travelPanel").addEventListener("toggle", handleTravelPanelToggle);
   document.addEventListener("click", handleSuggestionClick);
+  map.on("popupopen", bindStampPopupControls);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
   document.querySelector("#stampList").addEventListener("change", handleStampListChange);
   document.querySelectorAll("[data-trail]").forEach((button) => {
@@ -972,23 +973,43 @@ function deselectAllSegments() {
 }
 
 function getStampPopupContent(stamp, stampIndex) {
-  const suggestions = getDaySuggestions(stampIndex);
   const title = escapeHtml(stamp.name);
   const altitude = Number.isFinite(stamp.altitude) ? `${stamp.altitude} m` : "";
-  if (!suggestions.length) {
-    return `
-      <div class="stamp-popup">
-        <strong>${title}</strong>
-        <span>${altitude}</span>
-        <p class="suggestion-empty">No connected route in this direction.</p>
+  const forwardId = `popup-${activeTrailId}-${stampIndex}-forward`;
+  const reverseId = `popup-${activeTrailId}-${stampIndex}-reverse`;
+  const isReverse = state.direction === "reverse";
+
+  return `
+    <div class="stamp-popup" data-stamp-index="${stampIndex}">
+      <strong>${title}</strong>
+      <span>${altitude}</span>
+      <div class="popup-direction-switch">
+        <input class="popup-direction-input popup-dir-forward" id="${forwardId}" type="radio" name="popup-direction-${activeTrailId}-${stampIndex}" ${isReverse ? "" : "checked"} />
+        <input class="popup-direction-input popup-dir-reverse" id="${reverseId}" type="radio" name="popup-direction-${activeTrailId}-${stampIndex}" ${isReverse ? "checked" : ""} />
+        <div class="popup-direction" aria-label="Suggestion direction">
+          <label class="popup-direction-label forward-label" for="${forwardId}">W-E</label>
+          <label class="popup-direction-label reverse-label" for="${reverseId}">E-W</label>
+        </div>
+        ${renderPopupSuggestionPane(stampIndex, "forward")}
+        ${renderPopupSuggestionPane(stampIndex, "reverse")}
       </div>
-    `;
+    </div>
+  `;
+}
+
+function renderPopupSuggestionPane(stampIndex, direction) {
+  const suggestions = getDaySuggestions(stampIndex, direction);
+  const classes = `suggestion-list popup-suggestion-pane ${direction === "reverse" ? "reverse-pane" : "forward-pane"}`;
+  if (!suggestions.length) {
+    return `<div class="${classes}"><p class="suggestion-empty">No connected route in this direction.</p></div>`;
   }
 
-  const cards = suggestions
+  return `
+    <div class="${classes}">
+      ${suggestions
     .map(
       (suggestion) => `
-        <button class="suggestion-card" type="button" data-suggestion-start="${suggestion.startIndex}" data-suggestion-end="${suggestion.endIndex}">
+        <button class="suggestion-card" type="button" data-suggestion-start="${suggestion.startIndex}" data-suggestion-end="${suggestion.endIndex}" data-suggestion-direction="${direction}" onclick="window.applyStampSuggestion(this); return false;">
           <span>
             <small>${escapeHtml(suggestion.label)}</small>
             <strong>${escapeHtml(suggestion.from)} - ${escapeHtml(suggestion.to)}</strong>
@@ -1001,20 +1022,14 @@ function getStampPopupContent(stamp, stampIndex) {
         </button>
       `,
     )
-    .join("");
-
-  return `
-    <div class="stamp-popup">
-      <strong>${title}</strong>
-      <span>${altitude}</span>
-      <div class="suggestion-list">${cards}</div>
+    .join("")}
     </div>
   `;
 }
 
-function getDaySuggestions(startStampIndex) {
+function getDaySuggestions(startStampIndex, direction = state.direction) {
   if (!Number.isFinite(startStampIndex)) return [];
-  const isReverse = state.direction === "reverse";
+  const isReverse = direction === "reverse";
   const suggestions = [];
   const usedRanges = new Set();
 
@@ -1092,11 +1107,31 @@ function handleSuggestionClick(event) {
   if (!button) return;
   event.preventDefault();
   event.stopPropagation();
+  applySuggestionButton(button);
+}
+
+function bindStampPopupControls(event) {
+  const popupElement = event.popup?.getElement?.();
+  if (!popupElement) return;
+
+  popupElement.querySelectorAll("[data-suggestion-start]").forEach((button) => {
+    button.addEventListener("click", (clickEvent) => {
+      clickEvent.preventDefault();
+      clickEvent.stopPropagation();
+      applySuggestionButton(button);
+    });
+  });
+}
+
+function applySuggestionButton(button) {
   const startIndex = Number(button.dataset.suggestionStart);
   const endIndex = Number(button.dataset.suggestionEnd);
   if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) return;
 
   const before = new Set(state.selectedSegments);
+  if (["forward", "reverse"].includes(button.dataset.suggestionDirection)) {
+    state.direction = button.dataset.suggestionDirection;
+  }
   state.selectedSegments = segmentIdsBetween(startIndex, endIndex);
   updateChangedSelectedSegments(before, new Set(state.selectedSegments));
   saveState();
@@ -1104,6 +1139,8 @@ function handleSuggestionClick(event) {
   map.closePopup();
   fitSelectedSegments();
 }
+
+window.applyStampSuggestion = applySuggestionButton;
 
 function initTravelControls() {
   const input = document.querySelector("#travelStartTime");
