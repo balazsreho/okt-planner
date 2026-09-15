@@ -33,11 +33,11 @@
               <strong id="selectedDistance">0.0 km</strong>
             </div>
             <div>
-              <span class="stat-label">Forward</span>
+              <span class="stat-label" id="selectedTimeLabel">Forward</span>
               <strong id="selectedTime">0:00</strong>
             </div>
             <div>
-              <span class="stat-label">Reverse est.</span>
+              <span class="stat-label" id="selectedReturnTimeLabel">Reverse est.</span>
               <strong id="selectedReturnTime">0:00</strong>
             </div>
             <div>
@@ -90,6 +90,9 @@
               <button type="button" data-day-distance="25">25 km</button>
               <button type="button" data-day-distance="35">35 km</button>
             </div>
+            <button class="direction-toggle" id="directionToggle" type="button" aria-pressed="false">
+              Reverse plan
+            </button>
           </div>
           <div class="segment-list" id="segmentList"></div>
         </section>
