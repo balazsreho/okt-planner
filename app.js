@@ -1071,7 +1071,12 @@ function syncDirectionToggle() {
   const isReverse = state.direction === "reverse";
   button.classList.toggle("active", isReverse);
   button.setAttribute("aria-pressed", String(isReverse));
-  button.textContent = isReverse ? "Forward plan" : "Reverse plan";
+  button.textContent = isReverse ? "Reverse E-W" : "Forward W-E";
+  button.setAttribute(
+    "aria-label",
+    isReverse ? "Current plan direction is reverse, east to west" : "Current plan direction is forward, west to east",
+  );
+  button.setAttribute("title", "Tap to switch route direction");
 }
 
 function syncCompletedSegmentsFromStamps() {
