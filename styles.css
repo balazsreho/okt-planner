@@ -466,6 +466,17 @@ h2 {
   line-height: 1.25;
 }
 
+.elevation-header.is-clickable {
+  cursor: pointer;
+}
+
+.elevation-header.is-clickable #profileTitle {
+  text-decoration: underline;
+  text-decoration-color: rgba(var(--trail-rgb), 0.45);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 #profileTitle {
   color: var(--ink);
   font-weight: 700;
