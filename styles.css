@@ -613,7 +613,7 @@ h2 {
   margin-bottom: 5px;
 }
 
-.travel-controls label {
+.travel-time-field {
   display: grid;
   gap: 5px;
   min-width: 0;
@@ -623,31 +623,44 @@ h2 {
   text-transform: uppercase;
 }
 
-.travel-time-mode {
+.travel-date-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--glass-line);
-  border-radius: 14px;
-  background: rgba(218, 229, 238, 0.3);
-}
-
-.travel-time-mode button {
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 6px;
   min-width: 0;
-  min-height: 34px;
-  border: 0;
-  border-radius: 11px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
 }
 
-.travel-time-mode button.active {
-  background: rgba(var(--trail-rgb), 0.16);
+.travel-time-toggle {
+  display: grid;
+  width: 42px;
+  min-height: 42px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(var(--trail-rgb), 0.26);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(var(--trail-rgb), 0.12)),
+    rgba(255, 255, 255, 0.28);
   color: var(--trail-dark);
-  box-shadow: 0 6px 16px rgba(var(--trail-rgb), 0.1);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
+}
+
+.travel-time-toggle svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.travel-time-toggle .is-hidden {
+  display: none;
+}
+
+.travel-time-toggle:active {
+  transform: translateY(1px);
 }
 
 .travel-controls input {

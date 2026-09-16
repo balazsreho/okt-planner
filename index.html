@@ -19,7 +19,7 @@
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=49" />
+    <link rel="stylesheet" href="./styles.css?v=50" />
   </head>
   <body>
     <main class="app-shell">
@@ -87,18 +87,30 @@
               </span>
             </header>
             <div class="travel-controls">
-              <div class="travel-time-mode" aria-label="Outbound time type">
-                <button class="active" type="button" data-travel-time-mode="depart" aria-pressed="true">Leave home</button>
-                <button type="button" data-travel-time-mode="arrive" aria-pressed="false">Arrive at trail</button>
-              </div>
-              <label>
+              <div class="travel-time-field">
                 <span id="travelStartLabel">Leave home</span>
-                <input id="travelStartTime" type="datetime-local" />
-              </label>
-              <label>
-                <span>Leave trail end</span>
-                <input id="travelReturnTime" type="datetime-local" />
-              </label>
+                <div class="travel-date-row">
+                  <input id="travelStartTime" type="datetime-local" aria-labelledby="travelStartLabel" />
+                  <button class="travel-time-toggle" type="button" data-travel-time-toggle="outbound">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <g data-time-icon="depart"><path d="M4 5v14M7 12h12M15 8l4 4-4 4"></path></g>
+                      <g class="is-hidden" data-time-icon="arrive"><path d="M20 5v14M5 12h12M13 8l4 4-4 4"></path></g>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="travel-time-field">
+                <span id="travelReturnLabel">Leave trail end</span>
+                <div class="travel-date-row">
+                  <input id="travelReturnTime" type="datetime-local" aria-labelledby="travelReturnLabel" />
+                  <button class="travel-time-toggle" type="button" data-travel-time-toggle="return">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <g data-time-icon="depart"><path d="M4 5v14M7 12h12M15 8l4 4-4 4"></path></g>
+                      <g class="is-hidden" data-time-icon="arrive"><path d="M20 5v14M5 12h12M13 8l4 4-4 4"></path></g>
+                    </svg>
+                  </button>
+                </div>
+              </div>
               <button class="travel-button" id="travelButton" type="button">Find routes</button>
             </div>
             <div class="travel-results" id="travelResults">
@@ -192,7 +204,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./trail-route-data.js?v=49"></script>
-    <script src="./app.js?v=49"></script>
+    <script src="./trail-route-data.js?v=50"></script>
+    <script src="./app.js?v=50"></script>
   </body>
 </html>
