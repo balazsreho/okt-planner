@@ -602,27 +602,17 @@ h2 {
     0 12px 32px rgba(20, 33, 48, 0.08);
 }
 
-.travel-panel:not([open]) {
-  display: none;
-}
-
-.travel-panel summary {
+.travel-heading {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   min-height: 38px;
   color: var(--ink);
-  cursor: pointer;
-  list-style: none;
 }
 
-.travel-panel summary::-webkit-details-marker {
-  display: none;
-}
-
-.travel-panel summary strong,
-.travel-panel summary small {
+.travel-heading strong,
+.travel-heading small {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -630,13 +620,13 @@ h2 {
   white-space: nowrap;
 }
 
-.travel-panel summary strong {
+.travel-heading strong {
   color: var(--trail-dark);
   font-size: 14px;
   font-weight: 900;
 }
 
-.travel-panel summary small {
+.travel-heading small {
   margin-top: 2px;
   color: var(--muted);
   font-size: 12px;
@@ -678,11 +668,6 @@ h2 {
   height: 2px;
   border-radius: 999px;
   background: var(--trail);
-}
-
-.travel-panel[open] {
-  display: grid;
-  gap: 12px;
 }
 
 .travel-controls {
@@ -741,6 +726,20 @@ h2 {
 
 .travel-button:disabled {
   opacity: 0.58;
+}
+
+.travel-plan-button {
+  min-height: 40px;
+  border: 1px solid rgba(var(--trail-rgb), 0.26);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.34);
+  color: var(--trail-dark);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.travel-plan-button[hidden] {
+  display: none;
 }
 
 .travel-results {
@@ -1112,6 +1111,10 @@ h2 {
 .nav-item.active {
   background: rgba(var(--trail-rgb), 0.15);
   color: var(--trail-dark);
+}
+
+html[data-view="travel"] .elevation-dock {
+  display: none;
 }
 
 .trail-switcher {
@@ -1636,7 +1639,7 @@ h2 {
     border-radius: 20px;
   }
 
-  .travel-panel summary {
+  .travel-heading {
     min-height: 36px;
     grid-template-columns: 32px minmax(0, 1fr);
     gap: 9px;

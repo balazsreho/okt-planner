@@ -607,8 +607,8 @@ function renderLists() {
 }
 
 function bindControls() {
-  document.querySelector("#mapTab").addEventListener("click", () => switchTab("map"));
   document.querySelector("#planTab").addEventListener("click", () => switchTab("plan", true));
+  document.querySelector("#travelTab").addEventListener("click", () => switchTab("travel", true));
   document.querySelector("#progressTab").addEventListener("click", () => switchTab("progress", true));
   document.querySelector("#moreTab").addEventListener("click", () => switchTab("more", true));
   document.querySelector(".elevation-header").addEventListener("click", fitSelectedSegments);
@@ -616,8 +616,8 @@ function bindControls() {
     button.addEventListener("click", () => setDirection(button.dataset.direction));
   });
   document.querySelector("#travelButton").addEventListener("click", handleTravelRequest);
+  document.querySelector("#travelPlanButton").addEventListener("click", () => switchTab("plan", true));
   document.querySelector("#dockTravelButton").addEventListener("click", openTravelDetails);
-  document.querySelector("#travelPanel").addEventListener("toggle", handleTravelPanelToggle);
   document.addEventListener("click", handleSuggestionClick);
   map.on("popupopen", bindStampPopupControls);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
@@ -632,7 +632,7 @@ function bindControls() {
 }
 
 function setInitialView() {
-  switchTab(window.matchMedia("(max-width: 860px)").matches ? "map" : "plan");
+  switchTab("plan");
 }
 
 function handleSegmentListChange(event) {
@@ -1157,16 +1157,16 @@ function syncTravelPanel(selected, selectedTotals) {
   const dockSummary = document.querySelector("#dockTravelSummary");
   const routeLabel = document.querySelector("#travelRouteLabel");
   const results = document.querySelector("#travelResults");
+  const planButton = document.querySelector("#travelPlanButton");
   const panel = document.querySelector("#travelPanel");
-  if (!button || !dockButton || !dockSummary || !routeLabel || !results || !panel) return;
+  if (!button || !dockButton || !dockSummary || !routeLabel || !results || !planButton || !panel) return;
 
   const canCheck = selected.length > 0 && selected.every((segment) => segment.points?.length);
   button.disabled = !canCheck;
   dockButton.disabled = !canCheck;
-  panel.hidden = !canCheck;
+  planButton.hidden = canCheck;
   panel.dataset.routeKey = getTravelRouteKey(selected, selectedTotals);
   if (!canCheck) {
-    panel.open = false;
     results.removeAttribute("data-route-key");
     results.textContent = "Select a route to estimate public transport from Budapest.";
     dockSummary.textContent = "Select a route";
@@ -1178,6 +1178,9 @@ function syncTravelPanel(selected, selectedTotals) {
 
   if (!results.dataset.routeKey) {
     dockSummary.textContent = "Find connections";
+    if (results.textContent.includes("Select a route")) {
+      results.textContent = "Choose a departure time to find connections for this route.";
+    }
   }
 
   if (results.dataset.routeKey && results.dataset.routeKey !== panel.dataset.routeKey) {
@@ -1188,17 +1191,8 @@ function syncTravelPanel(selected, selectedTotals) {
 }
 
 function openTravelDetails() {
-  const panel = document.querySelector("#travelPanel");
-  if (!panel) return;
-  switchTab("plan");
-  panel.open = true;
+  switchTab("travel");
   expandBottomSheetForDetails();
-}
-
-function handleTravelPanelToggle(event) {
-  if (event.target.open) expandBottomSheetForDetails();
-  refreshMapLayout(false);
-  setTimeout(() => refreshMapLayout(false), 220);
 }
 
 function expandBottomSheetForDetails() {
@@ -1780,9 +1774,10 @@ function pointToSegmentDistance(point, start, end) {
 }
 
 function switchTab(tab, shouldExpand = false) {
-  const view = ["map", "plan", "progress", "more"].includes(tab) ? tab : "plan";
-  document.querySelector("#mapTab").classList.toggle("active", view === "map");
+  const view = ["plan", "travel", "progress", "more"].includes(tab) ? tab : "plan";
+  document.documentElement.dataset.view = view;
   document.querySelector("#planTab").classList.toggle("active", view === "plan");
+  document.querySelector("#travelTab").classList.toggle("active", view === "travel");
   document.querySelector("#progressTab").classList.toggle("active", view === "progress");
   document.querySelector("#moreTab").classList.toggle("active", view === "more");
   document.querySelectorAll(".bottom-nav .nav-item").forEach((button) => {
@@ -1793,11 +1788,18 @@ function switchTab(tab, shouldExpand = false) {
     }
   });
   document.querySelector("#planView").classList.toggle("active", view === "plan");
+  document.querySelector("#travelView").classList.toggle("active", view === "travel");
   document.querySelector("#progressView").classList.toggle("active", view === "progress");
   document.querySelector("#moreView").classList.toggle("active", view === "more");
 
-  if (view === "map") {
-    collapseBottomSheet();
+  if (view === "travel") {
+    if (state.selectedSegments.length) {
+      expandBottomSheetForDetails();
+    } else {
+      expandBottomSheetForLists();
+    }
+    fitSelectedSegments();
+    refreshMapLayout(false);
     return;
   }
 
