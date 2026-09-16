@@ -782,7 +782,16 @@ function getSafeAreaBottom() {
 }
 
 function syncViewportMetrics(shouldRefreshMap = true) {
-  const viewportHeight = Math.round(window.visualViewport?.height || window.innerHeight);
+  const visualBottom = (window.visualViewport?.height || 0) + (window.visualViewport?.offsetTop || 0);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  const viewportHeight = Math.round(
+    Math.max(
+      window.innerHeight,
+      document.documentElement.clientHeight,
+      visualBottom,
+      isStandalone ? window.outerHeight : 0,
+    ),
+  );
   if (viewportHeight > 0) {
     document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
   }

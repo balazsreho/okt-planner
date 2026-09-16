@@ -1,4 +1,4 @@
-const CACHE_NAME = "okt-planner-v51";
+const CACHE_NAME = "okt-planner-v52";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -36,8 +36,20 @@ self.addEventListener("fetch", (event) => {
 
   const requestUrl = new URL(event.request.url);
   const isTile = requestUrl.hostname === "tile.openstreetmap.org";
-  event.respondWith(isTile ? cacheFirst(event.request) : staleWhileRevalidate(event.request));
+  const isNavigation = event.request.mode === "navigate";
+  event.respondWith(isTile ? cacheFirst(event.request) : isNavigation ? networkFirst(event.request) : staleWhileRevalidate(event.request));
 });
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response.ok) cache.put(request, response.clone());
+    return response;
+  } catch {
+    return (await cache.match(request)) || (await cache.match("./index.html"));
+  }
+}
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
