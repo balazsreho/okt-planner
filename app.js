@@ -448,16 +448,20 @@ function loadTravelSettings() {
   const fallback = {
     origin: { ...budapestOrigin, address: "Budapest-Keleti" },
     outboundTimeMode: "depart",
+    returnTimeMode: "depart",
   };
 
   try {
     const saved = JSON.parse(localStorage.getItem(travelSettingsStorageKey));
     const origin = saved?.origin;
-    return {
+    const settings = {
       ...fallback,
       ...saved,
       origin: Number.isFinite(origin?.lat) && Number.isFinite(origin?.lng) ? origin : fallback.origin,
     };
+    settings.outboundTimeMode = ["depart", "arrive"].includes(settings.outboundTimeMode) ? settings.outboundTimeMode : "depart";
+    settings.returnTimeMode = ["depart", "arrive"].includes(settings.returnTimeMode) ? settings.returnTimeMode : "depart";
+    return settings;
   } catch {
     return fallback;
   }
@@ -643,8 +647,8 @@ function bindControls() {
   });
   document.querySelector("#travelButton").addEventListener("click", handleTravelRequest);
   document.querySelector("#travelPlanButton").addEventListener("click", () => switchTab("plan", true));
-  document.querySelectorAll("[data-travel-time-mode]").forEach((button) => {
-    button.addEventListener("click", () => setTravelTimeMode(button.dataset.travelTimeMode));
+  document.querySelectorAll("[data-travel-time-toggle]").forEach((button) => {
+    button.addEventListener("click", () => toggleTravelTimeMode(button.dataset.travelTimeToggle));
   });
   document.querySelector("#saveTravelOrigin").addEventListener("click", handleSaveTravelOrigin);
   document.addEventListener("click", handleSuggestionClick);
@@ -1184,9 +1188,9 @@ function initTravelControls() {
   returnInput.value = formatDateTimeLocal(tomorrowEvening);
 }
 
-function setTravelTimeMode(mode) {
-  if (!["depart", "arrive"].includes(mode) || travelSettings.outboundTimeMode === mode) return;
-  travelSettings.outboundTimeMode = mode;
+function toggleTravelTimeMode(leg) {
+  const key = leg === "return" ? "returnTimeMode" : "outboundTimeMode";
+  travelSettings[key] = travelSettings[key] === "arrive" ? "depart" : "arrive";
   saveTravelSettings();
   syncTravelSettingsUi();
   clearTravelResults("Choose your outbound and return times to find routes.");
@@ -1196,6 +1200,7 @@ function syncTravelSettingsUi() {
   const addressInput = document.querySelector("#travelOriginAddress");
   const status = document.querySelector("#travelOriginStatus");
   const startLabel = document.querySelector("#travelStartLabel");
+  const returnLabel = document.querySelector("#travelReturnLabel");
   if (addressInput && document.activeElement !== addressInput) {
     addressInput.value = travelSettings.origin.address || travelSettings.origin.name || "";
   }
@@ -1203,10 +1208,19 @@ function syncTravelSettingsUi() {
   if (startLabel) {
     startLabel.textContent = travelSettings.outboundTimeMode === "arrive" ? "Arrive at trailhead" : "Leave home";
   }
-  document.querySelectorAll("[data-travel-time-mode]").forEach((button) => {
-    const isActive = button.dataset.travelTimeMode === travelSettings.outboundTimeMode;
-    button.classList.toggle("active", isActive);
-    button.setAttribute("aria-pressed", String(isActive));
+  if (returnLabel) {
+    returnLabel.textContent = travelSettings.returnTimeMode === "arrive" ? "Arrive home" : "Leave trail end";
+  }
+  document.querySelectorAll("[data-travel-time-toggle]").forEach((button) => {
+    const isReturn = button.dataset.travelTimeToggle === "return";
+    const mode = isReturn ? travelSettings.returnTimeMode : travelSettings.outboundTimeMode;
+    const currentLabel = mode === "arrive" ? "Arrive by" : "Leave after";
+    const nextLabel = mode === "arrive" ? "leave after" : "arrive by";
+    button.querySelectorAll("[data-time-icon]").forEach((icon) => {
+      icon.classList.toggle("is-hidden", icon.dataset.timeIcon !== mode);
+    });
+    button.setAttribute("aria-label", `${isReturn ? "Return" : "Outbound"} time: ${currentLabel}. Switch to ${nextLabel}.`);
+    button.setAttribute("title", `Switch to ${nextLabel}`);
   });
 }
 
@@ -1336,12 +1350,12 @@ async function handleTravelRequest() {
       },
     );
     const inbound = await fetchTransitItinerary(route.end, travelSettings.origin, returnAt, {
-      arriveBy: false,
+      arriveBy: travelSettings.returnTimeMode === "arrive",
       label: "Back home",
     });
 
     results.dataset.routeKey = document.querySelector("#travelPanel")?.dataset.routeKey || "";
-    results.innerHTML = renderTravelResults(outbound, inbound, returnAt);
+    results.innerHTML = renderTravelResults(outbound, inbound, outboundAt, returnAt);
   } catch (error) {
     results.innerHTML = `<span class="travel-error">${escapeHtml(error.message || "Could not fetch public transport right now.")}</span>`;
   } finally {
@@ -1389,7 +1403,7 @@ async function fetchTransitItinerary(from, to, dateTime, options = {}) {
   };
 }
 
-function renderTravelResults(outbound, inbound, returnAt) {
+function renderTravelResults(outbound, inbound, outboundAt, returnAt) {
   const tripSpan = getTripSpan(outbound, inbound);
   const total = !tripSpan ? "" : `
     <div class="travel-total">
@@ -1398,8 +1412,8 @@ function renderTravelResults(outbound, inbound, returnAt) {
     </div>
   `;
   return `
-    ${renderTravelRow(outbound)}
-    ${renderTravelRow(inbound, returnAt)}
+    ${renderTravelRow(outbound, outboundAt, travelSettings.outboundTimeMode === "arrive")}
+    ${renderTravelRow(inbound, returnAt, travelSettings.returnTimeMode === "arrive")}
     ${total}
   `;
 }
@@ -1417,9 +1431,9 @@ function getTripSpan(outbound, inbound) {
   return `${days}d ${hours}h ${minutes}m`;
 }
 
-function renderTravelRow(item, requestedTime) {
+function renderTravelRow(item, requestedTime, arriveBy = false) {
   if (!item || item.empty) {
-    const suffix = requestedTime ? ` after ${formatClock(requestedTime)}` : "";
+    const suffix = requestedTime ? ` ${arriveBy ? "by" : "after"} ${formatClock(requestedTime)}` : "";
     return `
       <div class="travel-row">
         <span class="travel-row-label">${escapeHtml(item?.label || "Travel")}</span>
