@@ -19,7 +19,7 @@
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=52" />
+    <link rel="stylesheet" href="./styles.css?v=55" />
   </head>
   <body>
     <main class="app-shell">
@@ -164,6 +164,25 @@
               <small id="travelOriginStatus">Routes start from Budapest-Keleti.</small>
             </div>
           </div>
+          <div class="more-card progress-share-card">
+            <span class="eyebrow">Progress Backup</span>
+            <div class="progress-share-heading">
+              <strong>Share progress</strong>
+              <span>Scan on another device to merge all three trails.</span>
+            </div>
+            <div class="progress-qr" id="progressQr" aria-label="QR code containing trail progress"></div>
+            <div class="progress-share-actions">
+              <button class="share-progress-button" id="shareProgress" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 16V3M8 7l4-4 4 4"></path>
+                  <path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"></path>
+                </svg>
+                Share
+              </button>
+              <button class="copy-progress-button" id="copyProgressLink" type="button">Copy link</button>
+            </div>
+            <small id="progressShareStatus">Progress stays inside the link. Plans and settings are not included.</small>
+          </div>
         </section>
 
         <nav class="bottom-nav" aria-label="Primary">
@@ -199,12 +218,33 @@
       </aside>
     </main>
 
+    <dialog class="progress-import-dialog" id="progressImportDialog">
+      <form method="dialog">
+        <div class="progress-import-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 4v12M8 12l4 4 4-4"></path>
+            <path d="M5 19h14"></path>
+          </svg>
+        </div>
+        <div>
+          <span class="eyebrow">Shared Progress</span>
+          <h2>Merge this backup?</h2>
+          <p id="progressImportSummary">Existing progress on this device will be kept.</p>
+        </div>
+        <div class="progress-import-actions">
+          <button value="cancel" type="submit">Cancel</button>
+          <button id="confirmProgressImport" value="default" type="button">Merge progress</button>
+        </div>
+      </form>
+    </dialog>
+
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./trail-route-data.js?v=52"></script>
-    <script src="./app.js?v=52"></script>
+    <script src="./vendor/qrcode.min.js?v=55"></script>
+    <script src="./trail-route-data.js?v=55"></script>
+    <script src="./app.js?v=55"></script>
   </body>
 </html>
