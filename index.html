@@ -19,7 +19,7 @@
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=46" />
+    <link rel="stylesheet" href="./styles.css?v=47" />
   </head>
   <body>
     <main class="app-shell">
@@ -72,14 +72,18 @@
         </nav>
 
         <section class="panel-view active" id="planView">
-          <details class="travel-panel" id="travelPanel" aria-label="Public transport estimate">
-            <summary>
+          <div class="segment-list" id="segmentList"></div>
+        </section>
+
+        <section class="panel-view" id="travelView">
+          <section class="travel-panel" id="travelPanel" aria-label="Public transport estimate">
+            <header class="travel-heading">
               <span class="travel-summary-icon" aria-hidden="true"></span>
               <span>
                 <strong>Budapest transit</strong>
                 <small id="travelRouteLabel">Select a route</small>
               </span>
-            </summary>
+            </header>
             <div class="travel-controls">
               <label>
                 <span>Leave Budapest</span>
@@ -90,11 +94,11 @@
             <div class="travel-results" id="travelResults">
               Select a route to estimate public transport from Budapest.
             </div>
+            <button class="travel-plan-button" id="travelPlanButton" type="button">Choose a route</button>
             <a class="travel-source" href="https://transitous.org/sources/" target="_blank" rel="noreferrer">
               Transit data by Transitous
             </a>
-          </details>
-          <div class="segment-list" id="segmentList"></div>
+          </section>
         </section>
 
         <section class="panel-view" id="progressView">
@@ -130,19 +134,19 @@
         </section>
 
         <nav class="bottom-nav" aria-label="Primary">
-          <button class="nav-item" id="mapTab" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"></path>
-              <path d="M9 3v15M15 6v15"></path>
-            </svg>
-            <span>Map</span>
-          </button>
           <button class="nav-item active" id="planTab" type="button" aria-current="page">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M8 6h13M8 12h13M8 18h13"></path>
               <path d="M3 6h.01M3 12h.01M3 18h.01"></path>
             </svg>
             <span>Plan</span>
+          </button>
+          <button class="nav-item" id="travelTab" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6.5 4h11A2.5 2.5 0 0 1 20 6.5V16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6.5A2.5 2.5 0 0 1 6.5 4z"></path>
+              <path d="M6 11h12M7 15h.01M17 15h.01M7 18v2M17 18v2"></path>
+            </svg>
+            <span>Travel</span>
           </button>
           <button class="nav-item" id="progressTab" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -166,7 +170,7 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./trail-route-data.js?v=46"></script>
-    <script src="./app.js?v=46"></script>
+    <script src="./trail-route-data.js?v=47"></script>
+    <script src="./app.js?v=47"></script>
   </body>
 </html>
