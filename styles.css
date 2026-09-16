@@ -535,57 +535,6 @@ h2 {
   height: 180px;
 }
 
-.dock-travel-button {
-  display: grid;
-  width: 100%;
-  min-height: 38px;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 9px;
-  align-items: center;
-  margin-top: 7px;
-  padding: 7px 10px;
-  border: 1px solid rgba(var(--trail-rgb), 0.28);
-  border-radius: 999px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(var(--trail-rgb), 0.08)),
-    rgba(255, 255, 255, 0.24);
-  color: var(--trail-dark);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 8px 22px rgba(var(--trail-rgb), 0.11);
-  text-align: left;
-}
-
-.dock-travel-button span {
-  display: inline-grid;
-  min-height: 22px;
-  place-items: center;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: rgba(var(--trail-rgb), 0.13);
-  color: var(--trail-dark);
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.dock-travel-button strong {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dock-travel-button:not(:disabled):active {
-  transform: translateY(1px);
-}
-
-.dock-travel-button:disabled {
-  opacity: 0.6;
-}
-
 .travel-panel {
   display: grid;
   gap: 12px;
@@ -634,10 +583,10 @@ h2 {
 }
 
 .travel-summary-icon {
-  position: relative;
-  display: block;
+  display: grid;
   width: 34px;
   height: 34px;
+  place-items: center;
   border: 1px solid rgba(var(--trail-rgb), 0.18);
   border-radius: 50%;
   background:
@@ -646,28 +595,14 @@ h2 {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
 }
 
-.travel-summary-icon::before,
-.travel-summary-icon::after {
-  position: absolute;
-  content: "";
-}
-
-.travel-summary-icon::before {
-  top: 10px;
-  left: 8px;
-  width: 18px;
-  height: 10px;
-  border: 2px solid var(--trail);
-  border-radius: 6px 6px 4px 4px;
-}
-
-.travel-summary-icon::after {
-  right: 10px;
-  bottom: 8px;
-  left: 10px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--trail);
+.travel-summary-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: var(--trail);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .travel-controls {
@@ -686,6 +621,33 @@ h2 {
   font-size: 11px;
   font-weight: 850;
   text-transform: uppercase;
+}
+
+.travel-time-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--glass-line);
+  border-radius: 14px;
+  background: rgba(218, 229, 238, 0.3);
+}
+
+.travel-time-mode button {
+  min-width: 0;
+  min-height: 34px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.travel-time-mode button.active {
+  background: rgba(var(--trail-rgb), 0.16);
+  color: var(--trail-dark);
+  box-shadow: 0 6px 16px rgba(var(--trail-rgb), 0.1);
 }
 
 .travel-controls input {
@@ -1113,10 +1075,6 @@ h2 {
   color: var(--trail-dark);
 }
 
-html[data-view="travel"] .elevation-dock {
-  display: none;
-}
-
 .trail-switcher {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1179,6 +1137,60 @@ html[data-view="travel"] .elevation-dock {
 
 .setting-row .direction-segmented {
   margin-top: 0;
+}
+
+.address-setting {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.address-setting > label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.address-setting > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.address-setting input,
+.address-setting button {
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid var(--glass-line);
+  border-radius: 13px;
+  font: inherit;
+}
+
+.address-setting input {
+  padding: 0 11px;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.38);
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.address-setting button {
+  padding: 0 14px;
+  background: rgba(var(--trail-rgb), 0.14);
+  color: var(--trail-dark);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.address-setting button:disabled {
+  opacity: 0.58;
+}
+
+.address-setting small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .panel-view {
@@ -1583,21 +1595,6 @@ html[data-view="travel"] .elevation-dock {
 
   #elevationChart {
     height: 74px;
-  }
-
-  .dock-travel-button {
-    min-height: 34px;
-    gap: 8px;
-    margin-top: 5px;
-    padding: 6px 8px;
-  }
-
-  .dock-travel-button span {
-    font-size: 10px;
-  }
-
-  .dock-travel-button strong {
-    font-size: 12px;
   }
 
   .elevation-header {
