@@ -14,12 +14,13 @@
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <link rel="preconnect" href="https://unpkg.com" />
     <link rel="preconnect" href="https://tile.openstreetmap.org" />
+    <link rel="preconnect" href="https://photon.komoot.io" />
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=57" />
+    <link rel="stylesheet" href="./styles.css?v=58" />
   </head>
   <body>
     <main class="app-shell">
@@ -151,11 +152,33 @@
             <span class="eyebrow">Travel Origin</span>
             <div class="address-setting">
               <label for="travelOriginAddress">Home address</label>
-              <div>
-                <input id="travelOriginAddress" type="text" autocomplete="street-address" placeholder="Budapest-Keleti" />
+              <div class="address-input-row">
+                <div class="address-combobox">
+                  <input
+                    id="travelOriginAddress"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="Start typing an address"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-controls="travelOriginSuggestions"
+                    aria-expanded="false"
+                  />
+                  <div
+                    class="address-suggestions"
+                    id="travelOriginSuggestions"
+                    role="listbox"
+                    aria-label="Address suggestions"
+                    hidden
+                  ></div>
+                </div>
                 <button id="saveTravelOrigin" type="button">Set</button>
               </div>
               <small id="travelOriginStatus">Routes start from Budapest-Keleti.</small>
+              <small class="address-attribution">
+                Suggestions by <a href="https://photon.komoot.io" target="_blank" rel="noreferrer">Photon</a> and
+                <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>
+              </small>
             </div>
           </div>
           <div class="more-card progress-share-card">
@@ -237,8 +260,8 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./vendor/qrcode.min.js?v=57"></script>
-    <script src="./trail-route-data.js?v=57"></script>
-    <script src="./app.js?v=57"></script>
+    <script src="./vendor/qrcode.min.js?v=58"></script>
+    <script src="./trail-route-data.js?v=58"></script>
+    <script src="./app.js?v=58"></script>
   </body>
 </html>

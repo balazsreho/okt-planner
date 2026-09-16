@@ -1,4 +1,4 @@
-const CACHE_NAME = "okt-planner-v57";
+const CACHE_NAME = "okt-planner-v58";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -37,7 +37,11 @@ self.addEventListener("fetch", (event) => {
 
   const requestUrl = new URL(event.request.url);
   const isTile = requestUrl.hostname === "tile.openstreetmap.org";
+  const isDynamicApi = ["photon.komoot.io", "nominatim.openstreetmap.org", "api.transitous.org"].includes(
+    requestUrl.hostname,
+  );
   const isNavigation = event.request.mode === "navigate";
+  if (isDynamicApi) return;
   event.respondWith(isTile ? cacheFirst(event.request) : isNavigation ? networkFirst(event.request) : staleWhileRevalidate(event.request));
 });
 
