@@ -16,6 +16,7 @@ const daySuggestionBands = [
 ];
 const transitousPlanUrl = "https://api.transitous.org/api/v6/plan";
 const nominatimSearchUrl = "https://nominatim.openstreetmap.org/search";
+const photonSearchUrl = "https://photon.komoot.io/api/";
 const budapestOrigin = {
   name: "Budapest-Keleti",
   lat: 47.5003,
@@ -217,6 +218,12 @@ let trailRenderer;
 let isMapClickBound = false;
 let pendingProgressImport = null;
 let travelOptionGroups = null;
+let addressSuggestionTimer = null;
+let addressSuggestionController = null;
+let addressSuggestions = [];
+let activeAddressSuggestionIndex = -1;
+let pendingTravelOrigin = null;
+const addressSuggestionCache = new Map();
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -840,6 +847,7 @@ function bindControls() {
     button.addEventListener("click", () => toggleTravelTimeMode(button.dataset.travelTimeToggle));
   });
   document.querySelector("#saveTravelOrigin").addEventListener("click", handleSaveTravelOrigin);
+  initAddressAutocomplete();
   document.querySelector("#shareProgress").addEventListener("click", shareProgress);
   document.querySelector("#copyProgressLink").addEventListener("click", () => copyProgressLink());
   document.querySelector("#confirmProgressImport").addEventListener("click", mergeSharedProgress);
@@ -1445,6 +1453,199 @@ function syncTravelSettingsUi() {
   });
 }
 
+function initAddressAutocomplete() {
+  const input = document.querySelector("#travelOriginAddress");
+  if (!input) return;
+  input.addEventListener("input", handleAddressInput);
+  input.addEventListener("keydown", handleAddressKeydown);
+  input.addEventListener("focus", () => {
+    if (addressSuggestions.length && input.value.trim().length >= 3) renderAddressSuggestions();
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!event.target.closest(".address-setting")) hideAddressSuggestions();
+  });
+}
+
+function handleAddressInput(event) {
+  const query = event.target.value.trim();
+  if (pendingTravelOrigin?.label !== query) pendingTravelOrigin = null;
+  window.clearTimeout(addressSuggestionTimer);
+  addressSuggestionController?.abort();
+  addressSuggestionController = null;
+  activeAddressSuggestionIndex = -1;
+  hideAddressSuggestions();
+
+  if (query.length < 3) {
+    addressSuggestions = [];
+    return;
+  }
+
+  const cacheKey = query.toLocaleLowerCase("hu-HU");
+  if (addressSuggestionCache.has(cacheKey)) {
+    addressSuggestions = addressSuggestionCache.get(cacheKey);
+    renderAddressSuggestions();
+    return;
+  }
+
+  addressSuggestionTimer = window.setTimeout(() => fetchAddressSuggestions(query, cacheKey), 550);
+}
+
+async function fetchAddressSuggestions(query, cacheKey) {
+  const input = document.querySelector("#travelOriginAddress");
+  if (!input || input.value.trim() !== query) return;
+  addressSuggestionController = new AbortController();
+  const params = new URLSearchParams({
+    q: query,
+    limit: "8",
+    lat: String(budapestOrigin.lat),
+    lon: String(budapestOrigin.lng),
+    zoom: "7",
+    location_bias_scale: "0.55",
+  });
+
+  try {
+    const response = await fetch(`${photonSearchUrl}?${params.toString()}`, {
+      signal: addressSuggestionController.signal,
+      headers: { Accept: "application/geo+json, application/json" },
+    });
+    if (!response.ok) throw new Error(`Suggestion search failed (${response.status}).`);
+    const data = await response.json();
+    const seenLabels = new Set();
+    addressSuggestions = (data.features || [])
+      .map(normalizePhotonResult)
+      .filter((suggestion) => {
+        if (!suggestion) return false;
+        const key = suggestion.label.toLocaleLowerCase("hu-HU");
+        if (seenLabels.has(key)) return false;
+        seenLabels.add(key);
+        return true;
+      })
+      .slice(0, 5);
+    addressSuggestionCache.set(cacheKey, addressSuggestions);
+    if (input.value.trim() === query) renderAddressSuggestions();
+  } catch (error) {
+    if (error.name !== "AbortError") hideAddressSuggestions();
+  } finally {
+    addressSuggestionController = null;
+  }
+}
+
+function normalizePhotonResult(feature, index) {
+  const properties = feature?.properties || {};
+  const [lng, lat] = feature?.geometry?.coordinates || [];
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const streetAddress = [properties.street, properties.housenumber].filter(Boolean).join(" ");
+  const primary = streetAddress || properties.name || properties.city || properties.locality;
+  if (!primary) return null;
+  const locality = [properties.postcode, properties.city || properties.locality || properties.district]
+    .filter(Boolean)
+    .join(" ");
+  const detailParts = [locality, properties.state, properties.country].filter(
+    (part, partIndex, parts) => part && part !== primary && parts.indexOf(part) === partIndex,
+  );
+  const namePrefix = properties.name && properties.name !== primary ? properties.name : "";
+  const label = [namePrefix, primary, ...detailParts].filter(Boolean).join(", ");
+
+  return {
+    id: `travel-origin-option-${index}`,
+    label,
+    primary: namePrefix || primary,
+    secondary: [namePrefix ? primary : "", ...detailParts].filter(Boolean).join(", "),
+    lat,
+    lng,
+  };
+}
+
+function renderAddressSuggestions() {
+  const input = document.querySelector("#travelOriginAddress");
+  const list = document.querySelector("#travelOriginSuggestions");
+  if (!input || !list || !addressSuggestions.length) {
+    hideAddressSuggestions();
+    return;
+  }
+
+  list.replaceChildren(
+    ...addressSuggestions.map((suggestion, index) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.id = suggestion.id;
+      option.className = "address-suggestion";
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", String(index === activeAddressSuggestionIndex));
+      option.dataset.suggestionIndex = String(index);
+      const primary = document.createElement("strong");
+      primary.textContent = suggestion.primary;
+      option.append(primary);
+      if (suggestion.secondary) {
+        const secondary = document.createElement("span");
+        secondary.textContent = suggestion.secondary;
+        option.append(secondary);
+      }
+      option.addEventListener("click", () => selectAddressSuggestion(index));
+      return option;
+    }),
+  );
+  list.hidden = false;
+  input.setAttribute("aria-expanded", "true");
+  syncActiveAddressSuggestion();
+}
+
+function handleAddressKeydown(event) {
+  if (event.key === "Escape") {
+    hideAddressSuggestions();
+    return;
+  }
+  if (event.key === "Enter" && !document.querySelector("#travelOriginSuggestions")?.hidden) {
+    event.preventDefault();
+    if (activeAddressSuggestionIndex >= 0) selectAddressSuggestion(activeAddressSuggestionIndex);
+    else if (addressSuggestions.length) selectAddressSuggestion(0);
+    return;
+  }
+  if (!addressSuggestions.length || !["ArrowDown", "ArrowUp"].includes(event.key)) return;
+  event.preventDefault();
+  const direction = event.key === "ArrowDown" ? 1 : -1;
+  const nextIndex = activeAddressSuggestionIndex + direction;
+  activeAddressSuggestionIndex = Math.max(0, Math.min(addressSuggestions.length - 1, nextIndex));
+  renderAddressSuggestions();
+}
+
+function syncActiveAddressSuggestion() {
+  const input = document.querySelector("#travelOriginAddress");
+  const list = document.querySelector("#travelOriginSuggestions");
+  if (!input || !list) return;
+  const options = list.querySelectorAll("[role='option']");
+  options.forEach((option, index) => option.setAttribute("aria-selected", String(index === activeAddressSuggestionIndex)));
+  const activeOption = options[activeAddressSuggestionIndex];
+  if (activeOption) {
+    input.setAttribute("aria-activedescendant", activeOption.id);
+    activeOption.scrollIntoView({ block: "nearest" });
+  } else {
+    input.removeAttribute("aria-activedescendant");
+  }
+}
+
+function selectAddressSuggestion(index) {
+  const input = document.querySelector("#travelOriginAddress");
+  const suggestion = addressSuggestions[index];
+  if (!input || !suggestion) return;
+  pendingTravelOrigin = suggestion;
+  input.value = suggestion.label;
+  hideAddressSuggestions();
+  input.focus({ preventScroll: true });
+}
+
+function hideAddressSuggestions() {
+  const input = document.querySelector("#travelOriginAddress");
+  const list = document.querySelector("#travelOriginSuggestions");
+  if (list) list.hidden = true;
+  if (input) {
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+  }
+  activeAddressSuggestionIndex = -1;
+}
+
 async function handleSaveTravelOrigin() {
   const input = document.querySelector("#travelOriginAddress");
   const button = document.querySelector("#saveTravelOrigin");
@@ -1457,17 +1658,23 @@ async function handleSaveTravelOrigin() {
   status.textContent = "Finding this address...";
 
   try {
-    const params = new URLSearchParams({ q: query, format: "jsonv2", limit: "1" });
-    const response = await fetch(`${nominatimSearchUrl}?${params.toString()}`, {
-      headers: { "Accept-Language": "en" },
-    });
-    if (!response.ok) throw new Error(`Address search failed (${response.status}).`);
-    const [match] = await response.json();
-    const lat = Number.parseFloat(match?.lat);
-    const lng = Number.parseFloat(match?.lon);
+    let lat = pendingTravelOrigin?.label === query ? pendingTravelOrigin.lat : NaN;
+    let lng = pendingTravelOrigin?.label === query ? pendingTravelOrigin.lng : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      const params = new URLSearchParams({ q: query, format: "jsonv2", limit: "1" });
+      const response = await fetch(`${nominatimSearchUrl}?${params.toString()}`, {
+        headers: { "Accept-Language": "en" },
+      });
+      if (!response.ok) throw new Error(`Address search failed (${response.status}).`);
+      const [match] = await response.json();
+      lat = Number.parseFloat(match?.lat);
+      lng = Number.parseFloat(match?.lon);
+    }
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error("Address not found. Try adding the city or postcode.");
 
     travelSettings.origin = { name: query, address: query, lat, lng };
+    pendingTravelOrigin = null;
+    hideAddressSuggestions();
     saveTravelSettings();
     syncTravelSettingsUi();
     clearTravelResults("Origin updated. Find routes again for the selected trail.");
