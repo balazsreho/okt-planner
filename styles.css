@@ -767,6 +767,142 @@ h2 {
   white-space: nowrap;
 }
 
+.travel-option-group {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.travel-option-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px;
+}
+
+.travel-option-heading small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.travel-carousel {
+  display: grid;
+  grid-auto-columns: min(88%, 310px);
+  grid-auto-flow: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 -12px;
+  padding: 2px 20px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-padding-inline: 20px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.travel-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.travel-option-card {
+  display: grid;
+  min-width: 0;
+  min-height: 128px;
+  align-content: start;
+  gap: 4px;
+  padding: 10px 11px;
+  overflow: hidden;
+  border: 1px solid var(--glass-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--muted);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.58) inset;
+  text-align: left;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.travel-option-card.selected {
+  border-color: rgba(var(--trail-rgb), 0.48);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.54), rgba(var(--trail-rgb), 0.12)),
+    rgba(255, 255, 255, 0.34);
+  box-shadow: 0 0 0 1px rgba(var(--trail-rgb), 0.1), 0 8px 22px rgba(var(--trail-rgb), 0.1);
+}
+
+.travel-option-card strong {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.travel-option-card > span:not(.travel-option-topline) {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-option-topline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--trail-dark);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.travel-option-topline small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-option-card .travel-leg-strip {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.travel-option-card .travel-leg-chip {
+  flex: 0 0 auto;
+}
+
+.travel-option-card .travel-leg-name {
+  max-width: 92px;
+}
+
+.travel-carousel-dots {
+  display: flex;
+  min-height: 6px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.travel-carousel-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(88, 112, 140, 0.28);
+}
+
+.travel-carousel-dots span.active {
+  width: 13px;
+  border-radius: 999px;
+  background: var(--trail);
+}
+
 .travel-leg-strip {
   display: flex;
   flex-wrap: wrap;

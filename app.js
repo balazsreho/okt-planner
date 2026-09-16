@@ -216,6 +216,7 @@ let geometrySource = activeTrail?.geometrySource || "Bundled GPX";
 let trailRenderer;
 let isMapClickBound = false;
 let pendingProgressImport = null;
+let travelOptionGroups = null;
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -833,6 +834,8 @@ function bindControls() {
   });
   document.querySelector("#travelButton").addEventListener("click", handleTravelRequest);
   document.querySelector("#travelPlanButton").addEventListener("click", () => switchTab("plan", true));
+  document.querySelector("#travelResults").addEventListener("click", handleTravelOptionClick);
+  document.querySelector("#travelResults").addEventListener("scroll", handleTravelCarouselScroll, true);
   document.querySelectorAll("[data-travel-time-toggle]").forEach((button) => {
     button.addEventListener("click", () => toggleTravelTimeMode(button.dataset.travelTimeToggle));
   });
@@ -1483,6 +1486,7 @@ function getTravelOriginLabel() {
 function clearTravelResults(message) {
   const results = document.querySelector("#travelResults");
   if (!results) return;
+  travelOptionGroups = null;
   results.removeAttribute("data-route-key");
   results.textContent = message;
 }
@@ -1500,6 +1504,7 @@ function syncTravelPanel(selected, selectedTotals) {
   planButton.hidden = canCheck;
   panel.dataset.routeKey = getTravelRouteKey(selected, selectedTotals);
   if (!canCheck) {
+    travelOptionGroups = null;
     results.removeAttribute("data-route-key");
     results.textContent = `Select a route to estimate public transport from ${getTravelOriginLabel()}.`;
     routeLabel.textContent = "Select a route";
@@ -1515,6 +1520,7 @@ function syncTravelPanel(selected, selectedTotals) {
   }
 
   if (results.dataset.routeKey && results.dataset.routeKey !== panel.dataset.routeKey) {
+    travelOptionGroups = null;
     results.textContent = "Check public transport for this selected route.";
     results.removeAttribute("data-route-key");
   }
@@ -1558,23 +1564,23 @@ async function handleTravelRequest() {
   results.innerHTML = `<span class="travel-muted">Looking for routes from ${escapeHtml(getTravelOriginLabel())}...</span>`;
 
   try {
-    const outbound = await fetchTransitItinerary(
-      travelSettings.origin,
-      route.start,
-      outboundAt,
-      {
+    const [outbound, inbound] = await Promise.all([
+      fetchTransitItineraryOptions(travelSettings.origin, route.start, outboundAt, {
         arriveBy: travelSettings.outboundTimeMode === "arrive",
         label: "To trailhead",
-      },
-    );
-    const inbound = await fetchTransitItinerary(route.end, travelSettings.origin, returnAt, {
-      arriveBy: travelSettings.returnTimeMode === "arrive",
-      label: "Back home",
-    });
+      }),
+      fetchTransitItineraryOptions(route.end, travelSettings.origin, returnAt, {
+        arriveBy: travelSettings.returnTimeMode === "arrive",
+        label: "Back home",
+      }),
+    ]);
 
+    travelOptionGroups = { outbound, inbound, outboundAt, returnAt };
     results.dataset.routeKey = document.querySelector("#travelPanel")?.dataset.routeKey || "";
     results.innerHTML = renderTravelResults(outbound, inbound, outboundAt, returnAt);
+    centerSelectedTravelOptions();
   } catch (error) {
+    travelOptionGroups = null;
     results.innerHTML = `<span class="travel-error">${escapeHtml(error.message || "Could not fetch public transport right now.")}</span>`;
   } finally {
     button.disabled = false;
@@ -1582,13 +1588,14 @@ async function handleTravelRequest() {
   }
 }
 
-async function fetchTransitItinerary(from, to, dateTime, options = {}) {
+async function fetchTransitItineraryOptions(from, to, dateTime, options = {}) {
   const params = new URLSearchParams({
     fromPlace: `${from.lat},${from.lng}`,
     toPlace: `${to.lat},${to.lng}`,
     time: toTransitousDateTime(dateTime),
     arriveBy: String(Boolean(options.arriveBy)),
     numItineraries: "3",
+    timetableView: "true",
     radius: "2500",
     maxTravelTime: "720",
     detailedLegs: "false",
@@ -1596,22 +1603,50 @@ async function fetchTransitItinerary(from, to, dateTime, options = {}) {
   });
   params.append("directModes", "");
 
+  const firstPage = await fetchTransitPage(params);
+  const initial = firstPage.itineraries.map(normalizeTransitItinerary);
+  const primary = selectClosestTransitOption(initial, dateTime, Boolean(options.arriveBy));
+  if (!primary) {
+    return { empty: true, label: options.label || "Travel", options: [], selectedIndex: -1, closestIndex: -1 };
+  }
+
+  const neighborCursor = options.arriveBy ? firstPage.nextPageCursor : firstPage.previousPageCursor;
+  let neighbors = [];
+  if (neighborCursor) {
+    const neighborParams = new URLSearchParams(params);
+    neighborParams.set("pageCursor", neighborCursor);
+    try {
+      const neighborPage = await fetchTransitPage(neighborParams);
+      neighbors = neighborPage.itineraries.map(normalizeTransitItinerary);
+    } catch {
+      neighbors = [];
+    }
+  }
+
+  const centered = buildCenteredTransitOptions([...initial, ...neighbors], primary, Boolean(options.arriveBy));
+  return {
+    label: options.label || "Travel",
+    options: centered.options,
+    selectedIndex: centered.selectedIndex,
+    closestIndex: centered.selectedIndex,
+  };
+}
+
+async function fetchTransitPage(params) {
   const response = await fetch(`${transitousPlanUrl}?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Transit search failed (${response.status}).`);
   }
-
   const data = await response.json();
-  const itinerary = data.itineraries?.[0] || null;
-  if (!itinerary) {
-    return {
-      empty: true,
-      label: options.label || "Travel",
-    };
-  }
-
   return {
-    label: options.label || "Travel",
+    itineraries: data.itineraries || [],
+    previousPageCursor: data.previousPageCursor || "",
+    nextPageCursor: data.nextPageCursor || "",
+  };
+}
+
+function normalizeTransitItinerary(itinerary) {
+  return {
     duration: itinerary.duration,
     startTime: itinerary.startTime,
     endTime: itinerary.endTime,
@@ -1621,8 +1656,46 @@ async function fetchTransitItinerary(from, to, dateTime, options = {}) {
   };
 }
 
+function selectClosestTransitOption(items, requestedTime, arriveBy) {
+  const requested = requestedTime.getTime();
+  const valid = items.filter((item) => Number.isFinite(getTransitOptionTime(item, arriveBy)));
+  if (!valid.length) return null;
+  const eligible = valid.filter((item) => (arriveBy ? getTransitOptionTime(item, true) <= requested : getTransitOptionTime(item, false) >= requested));
+  const pool = eligible.length ? eligible : valid;
+  return pool.reduce((best, item) => {
+    const distance = Math.abs(getTransitOptionTime(item, arriveBy) - requested);
+    const bestDistance = Math.abs(getTransitOptionTime(best, arriveBy) - requested);
+    return distance < bestDistance ? item : best;
+  });
+}
+
+function getTransitOptionTime(item, arriveBy) {
+  const value = new Date(arriveBy ? item.endTime : item.startTime).getTime();
+  return Number.isNaN(value) ? NaN : value;
+}
+
+function getTransitOptionKey(item) {
+  return `${item.startTime}|${item.endTime}|${item.summary}`;
+}
+
+function buildCenteredTransitOptions(items, primary, arriveBy) {
+  const unique = Array.from(new Map(items.map((item) => [getTransitOptionKey(item), item])).values()).sort(
+    (a, b) => getTransitOptionTime(a, arriveBy) - getTransitOptionTime(b, arriveBy),
+  );
+  const primaryKey = getTransitOptionKey(primary);
+  const primaryIndex = unique.findIndex((item) => getTransitOptionKey(item) === primaryKey);
+  if (primaryIndex < 0) return { options: [primary], selectedIndex: 0 };
+
+  const before = unique.slice(Math.max(0, primaryIndex - 2), primaryIndex);
+  const after = unique.slice(primaryIndex + 1, primaryIndex + 3);
+  const options = [...before, unique[primaryIndex], ...after];
+  return { options, selectedIndex: before.length };
+}
+
 function renderTravelResults(outbound, inbound, outboundAt, returnAt) {
-  const tripSpan = getTripSpan(outbound, inbound);
+  const selectedOutbound = getSelectedTransitOption(outbound);
+  const selectedInbound = getSelectedTransitOption(inbound);
+  const tripSpan = getTripSpan(selectedOutbound, selectedInbound);
   const total = !tripSpan ? "" : `
     <div class="travel-total">
       <span>Trip span</span>
@@ -1630,10 +1703,15 @@ function renderTravelResults(outbound, inbound, outboundAt, returnAt) {
     </div>
   `;
   return `
-    ${renderTravelRow(outbound, outboundAt, travelSettings.outboundTimeMode === "arrive")}
-    ${renderTravelRow(inbound, returnAt, travelSettings.returnTimeMode === "arrive")}
+    ${renderTravelCarousel("outbound", outbound, outboundAt, travelSettings.outboundTimeMode === "arrive")}
+    ${renderTravelCarousel("inbound", inbound, returnAt, travelSettings.returnTimeMode === "arrive")}
     ${total}
   `;
+}
+
+function getSelectedTransitOption(group) {
+  if (!group || group.empty) return null;
+  return group.options[group.selectedIndex] || null;
 }
 
 function getTripSpan(outbound, inbound) {
@@ -1649,12 +1727,12 @@ function getTripSpan(outbound, inbound) {
   return `${days}d ${hours}h ${minutes}m`;
 }
 
-function renderTravelRow(item, requestedTime, arriveBy = false) {
-  if (!item || item.empty) {
+function renderTravelCarousel(leg, group, requestedTime, arriveBy = false) {
+  if (!group || group.empty || !group.options.length) {
     const suffix = requestedTime ? ` ${arriveBy ? "by" : "after"} ${formatClock(requestedTime)}` : "";
     return `
       <div class="travel-row">
-        <span class="travel-row-label">${escapeHtml(item?.label || "Travel")}</span>
+        <span class="travel-row-label">${escapeHtml(group?.label || "Travel")}</span>
         <strong>No route found</strong>
         <small>No public transport route found${suffix}.</small>
       </div>
@@ -1662,13 +1740,97 @@ function renderTravelRow(item, requestedTime, arriveBy = false) {
   }
 
   return `
-    <div class="travel-row">
-      <span class="travel-row-label">${escapeHtml(item.label)}</span>
-      <strong>${formatMinutes(Math.round(item.duration / 60))}</strong>
-      <span>${formatClock(item.startTime)}-${formatClock(item.endTime)} · ${item.transfers} transfers</span>
-      ${renderTransitSteps(item.steps, item.summary)}
-    </div>
+    <section class="travel-option-group" data-travel-group="${leg}">
+      <header class="travel-option-heading">
+        <span class="travel-row-label">${escapeHtml(group.label)}</span>
+        <small>Swipe for nearby times</small>
+      </header>
+      <div class="travel-carousel" data-travel-carousel="${leg}">
+        ${group.options
+          .map((item, index) => renderTravelOptionCard(leg, item, index, group.selectedIndex, group.closestIndex, requestedTime, arriveBy))
+          .join("")}
+      </div>
+      <div class="travel-carousel-dots" aria-hidden="true">
+        ${group.options.map((_, index) => `<span class="${index === group.selectedIndex ? "active" : ""}"></span>`).join("")}
+      </div>
+    </section>
   `;
+}
+
+function renderTravelOptionCard(leg, item, index, selectedIndex, closestIndex, requestedTime, arriveBy) {
+  const isSelected = index === selectedIndex;
+  const anchor = getTransitOptionTime(item, arriveBy);
+  const requested = requestedTime.getTime();
+  const relation = index === closestIndex ? "Closest" : Math.abs(anchor - requested) < 60000 ? "Requested" : anchor < requested ? "Earlier" : "Later";
+  const day = formatTravelOptionDay(item, requestedTime, arriveBy);
+  return `
+    <button class="travel-option-card ${isSelected ? "selected" : ""}" type="button" data-travel-option="${leg}" data-option-index="${index}" aria-pressed="${isSelected}">
+      <span class="travel-option-topline">
+        <span>${relation}</span>
+        ${day ? `<small>${day}</small>` : ""}
+      </span>
+      <strong>${formatClock(item.startTime)}-${formatClock(item.endTime)}</strong>
+      <span>${formatMinutes(Math.round(item.duration / 60))} · ${item.transfers} transfer${item.transfers === 1 ? "" : "s"}</span>
+      ${renderTransitSteps(item.steps, item.summary)}
+    </button>
+  `;
+}
+
+function formatTravelOptionDay(item, requestedTime, arriveBy) {
+  const optionDate = new Date(arriveBy ? item.endTime : item.startTime);
+  if (Number.isNaN(optionDate.getTime()) || optionDate.toDateString() === requestedTime.toDateString()) return "";
+  return optionDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function handleTravelOptionClick(event) {
+  const button = event.target.closest("[data-travel-option]");
+  if (!button || !travelOptionGroups) return;
+  const leg = button.dataset.travelOption;
+  const group = travelOptionGroups[leg];
+  const index = Number(button.dataset.optionIndex);
+  if (!group || !Number.isInteger(index) || !group.options[index]) return;
+  group.selectedIndex = index;
+  const results = document.querySelector("#travelResults");
+  results.innerHTML = renderTravelResults(
+    travelOptionGroups.outbound,
+    travelOptionGroups.inbound,
+    travelOptionGroups.outboundAt,
+    travelOptionGroups.returnAt,
+  );
+  centerSelectedTravelOptions(true);
+}
+
+function centerSelectedTravelOptions(smooth = false) {
+  requestAnimationFrame(() => {
+    document.querySelectorAll(".travel-carousel").forEach((carousel) => {
+      const selected = carousel.querySelector(".travel-option-card.selected");
+      if (!selected) return;
+      carousel.scrollTo({
+        left: selected.offsetLeft - (carousel.clientWidth - selected.offsetWidth) / 2,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    });
+  });
+}
+
+function handleTravelCarouselScroll(event) {
+  const carousel = event.target.closest?.(".travel-carousel");
+  if (!carousel || carousel.dataset.dotFrame) return;
+  carousel.dataset.dotFrame = "pending";
+  requestAnimationFrame(() => {
+    delete carousel.dataset.dotFrame;
+    const cards = Array.from(carousel.querySelectorAll(".travel-option-card"));
+    const viewportCenter = carousel.scrollLeft + carousel.clientWidth / 2;
+    const nearestIndex = cards.reduce((bestIndex, card, index) => {
+      const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+      const best = cards[bestIndex];
+      const bestCenter = best.offsetLeft + best.offsetWidth / 2;
+      return Math.abs(cardCenter - viewportCenter) < Math.abs(bestCenter - viewportCenter) ? index : bestIndex;
+    }, 0);
+    carousel.closest(".travel-option-group")?.querySelectorAll(".travel-carousel-dots span").forEach((dot, index) => {
+      dot.classList.toggle("active", index === nearestIndex);
+    });
+  });
 }
 
 function formatTravelRouteLabel(selected) {
