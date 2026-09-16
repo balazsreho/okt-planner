@@ -219,6 +219,7 @@ document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
 
 function init() {
+  syncViewportMetrics(false);
   if (!window.L) {
     document.querySelector("#map").innerHTML =
       '<div class="map-error">Map library could not load. Check the CDN connection or run the app from a local server.</div>';
@@ -658,8 +659,13 @@ function bindControls() {
   document.querySelectorAll("[data-trail]").forEach((button) => {
     button.addEventListener("click", () => switchTrail(button.dataset.trail));
   });
-  window.addEventListener("load", () => refreshMapLayout(false));
-  window.addEventListener("resize", () => refreshMapLayout(false));
+  window.addEventListener("load", refreshViewportAfterResume);
+  window.addEventListener("resize", refreshViewportAfterResume);
+  window.addEventListener("pageshow", refreshViewportAfterResume);
+  window.visualViewport?.addEventListener("resize", refreshViewportAfterResume);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshViewportAfterResume();
+  });
   initBottomSheet();
   syncTrailButtons();
 }
@@ -773,6 +779,21 @@ function getSafeAreaBottom() {
   const value = Number.parseFloat(getComputedStyle(probe).height) || 0;
   probe.remove();
   return value;
+}
+
+function syncViewportMetrics(shouldRefreshMap = true) {
+  const viewportHeight = Math.round(window.visualViewport?.height || window.innerHeight);
+  if (viewportHeight > 0) {
+    document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
+  }
+  if (shouldRefreshMap && map) refreshMapLayout(false);
+}
+
+function refreshViewportAfterResume() {
+  syncViewportMetrics();
+  requestAnimationFrame(() => syncViewportMetrics());
+  setTimeout(() => syncViewportMetrics(), 160);
+  setTimeout(() => syncViewportMetrics(), 480);
 }
 
 function setSheetExpanded(isExpanded) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "okt-planner-v50";
+const CACHE_NAME = "okt-planner-v51";
 const APP_SHELL = [
   "./",
   "./index.html",
