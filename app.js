@@ -3,6 +3,7 @@ const defaultTrailId = trails.okt ? "okt" : Object.keys(trails)[0];
 const activeTrailStorageKey = "kekkor-active-trail";
 const stateStoragePrefix = "kekkor-planner-state";
 const travelSettingsStorageKey = "kekkor-travel-settings";
+const progressShareHashKey = "progress";
 const trailPalettes = {
   okt: { color: "#1261b3", dark: "#083e7d", rgb: "18, 97, 179" },
   ak: { color: "#23864a", dark: "#145c33", rgb: "35, 134, 74" },
@@ -214,6 +215,7 @@ let map;
 let geometrySource = activeTrail?.geometrySource || "Bundled GPX";
 let trailRenderer;
 let isMapClickBound = false;
+let pendingProgressImport = null;
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -255,6 +257,7 @@ function init() {
   initTravelControls();
   syncTravelSettingsUi();
   updateUi();
+  initProgressSharing();
   refreshMapLayout(true);
   if (useLiveOfficialGeometry) loadOfficialGeometry();
 }
@@ -443,6 +446,188 @@ function loadState(trailId = activeTrailId) {
 
 function saveState() {
   localStorage.setItem(getStorageKey(), JSON.stringify(state));
+}
+
+function initProgressSharing() {
+  refreshProgressShareUi();
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const token = hashParams.get(progressShareHashKey);
+  if (!token) return;
+
+  history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
+  try {
+    pendingProgressImport = decodeProgressShare(token);
+    showProgressImportPrompt(pendingProgressImport);
+  } catch {
+    setProgressShareStatus("This progress link is invalid or uses an unsupported version.");
+  }
+}
+
+function getTrailStampIds(trail) {
+  if (trail.stamps?.length) return trail.stamps.map((stamp) => stamp.id || slugify(stamp.name));
+  const names = [];
+  trail.segments.forEach((segment) => {
+    if (!names.includes(segment.from)) names.push(segment.from);
+    if (!names.includes(segment.to)) names.push(segment.to);
+  });
+  return names.map(slugify);
+}
+
+function encodeMembership(ids, selectedValues) {
+  const selected = new Set(selectedValues);
+  const bytes = new Uint8Array(Math.ceil(ids.length / 8));
+  ids.forEach((id, index) => {
+    if (selected.has(id)) bytes[Math.floor(index / 8)] |= 1 << (index % 8);
+  });
+  return bytesToBase64Url(bytes);
+}
+
+function decodeMembership(ids, encoded) {
+  const bytes = base64UrlToBytes(encoded);
+  return ids.filter((id, index) => Boolean(bytes[Math.floor(index / 8)] & (1 << (index % 8))));
+}
+
+function bytesToBase64Url(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBytes(value) {
+  if (!/^[A-Za-z0-9_-]*$/.test(value)) throw new Error("Invalid progress data.");
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function encodeProgressShare() {
+  saveState();
+  const progress = {};
+  Object.entries(trails).forEach(([trailId, trail]) => {
+    const savedState = loadState(trailId);
+    const segmentIds = trail.segments.map((segment) => segment.id);
+    const stampIds = getTrailStampIds(trail);
+    if (!savedState.completedSegments.length && !savedState.stamped.length) return;
+    progress[trailId] = [
+      segmentIds.length,
+      stampIds.length,
+      encodeMembership(segmentIds, savedState.completedSegments),
+      encodeMembership(stampIds, savedState.stamped),
+    ];
+  });
+  const json = JSON.stringify({ v: 1, p: progress });
+  return bytesToBase64Url(new TextEncoder().encode(json));
+}
+
+function decodeProgressShare(token) {
+  const json = new TextDecoder().decode(base64UrlToBytes(token));
+  const payload = JSON.parse(json);
+  if (payload?.v !== 1 || !payload.p || typeof payload.p !== "object") throw new Error("Unsupported progress data.");
+
+  const imported = {};
+  let completedCount = 0;
+  Object.entries(payload.p).forEach(([trailId, encoded]) => {
+    const trail = trails[trailId];
+    if (!trail || !Array.isArray(encoded) || encoded.length !== 4) return;
+    const segmentIds = trail.segments.map((segment) => segment.id);
+    const stampIds = getTrailStampIds(trail);
+    if (encoded[0] !== segmentIds.length || encoded[1] !== stampIds.length) return;
+    const completedSegments = decodeMembership(segmentIds, encoded[2]);
+    const stamped = decodeMembership(stampIds, encoded[3]);
+    imported[trailId] = { completedSegments, stamped };
+    completedCount += completedSegments.length;
+  });
+  if (!Object.keys(imported).length && Object.keys(payload.p).length) throw new Error("Progress data does not match this trail version.");
+  return { trails: imported, completedCount };
+}
+
+function createProgressShareUrl() {
+  const url = new URL(window.location.href);
+  url.hash = `${progressShareHashKey}=${encodeURIComponent(encodeProgressShare())}`;
+  return url.toString();
+}
+
+function refreshProgressShareUi() {
+  const qrElement = document.querySelector("#progressQr");
+  if (!qrElement) return;
+  const url = createProgressShareUrl();
+  if (typeof window.qrcode !== "function") {
+    qrElement.textContent = "QR unavailable";
+    return;
+  }
+  const code = window.qrcode(0, "M");
+  code.addData(url);
+  code.make();
+  qrElement.innerHTML = code.createSvgTag({ scalable: true, margin: 0 });
+  qrElement.querySelector("svg")?.setAttribute("aria-hidden", "true");
+}
+
+async function shareProgress() {
+  const url = createProgressShareUrl();
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "Kékkör progress", text: "Merge my Kékkör trail progress.", url });
+      setProgressShareStatus("Progress link shared.");
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+    }
+  }
+  await copyProgressLink(url);
+}
+
+async function copyProgressLink(url = createProgressShareUrl()) {
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const input = document.createElement("textarea");
+    input.value = url;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.append(input);
+    input.select();
+    document.execCommand("copy");
+    input.remove();
+  }
+  setProgressShareStatus("Progress link copied.");
+}
+
+function setProgressShareStatus(message) {
+  const status = document.querySelector("#progressShareStatus");
+  if (status) status.textContent = message;
+}
+
+function showProgressImportPrompt(progressImport) {
+  const trailCount = Object.keys(progressImport.trails).length;
+  const summary = document.querySelector("#progressImportSummary");
+  const dialog = document.querySelector("#progressImportDialog");
+  if (summary) {
+    summary.textContent = `${progressImport.completedCount} completed segment${progressImport.completedCount === 1 ? "" : "s"} across ${trailCount} trail${trailCount === 1 ? "" : "s"}. Existing progress on this device will be kept.`;
+  }
+  if (dialog?.showModal) {
+    dialog.showModal();
+  } else if (window.confirm(`${summary?.textContent || "Merge shared progress?"}`)) {
+    mergeSharedProgress();
+  }
+}
+
+function mergeSharedProgress() {
+  if (!pendingProgressImport) return;
+  Object.entries(pendingProgressImport.trails).forEach(([trailId, imported]) => {
+    const savedState = loadState(trailId);
+    savedState.completedSegments = Array.from(new Set([...savedState.completedSegments, ...imported.completedSegments]));
+    savedState.stamped = Array.from(new Set([...savedState.stamped, ...imported.stamped]));
+    localStorage.setItem(getStorageKey(trailId), JSON.stringify(savedState));
+  });
+  state = loadState(activeTrailId);
+  updateUi();
+  refreshProgressShareUi();
+  setProgressShareStatus(`Merged ${pendingProgressImport.completedCount} completed segments.`);
+  pendingProgressImport = null;
+  document.querySelector("#progressImportDialog")?.close();
 }
 
 function loadTravelSettings() {
@@ -652,6 +837,9 @@ function bindControls() {
     button.addEventListener("click", () => toggleTravelTimeMode(button.dataset.travelTimeToggle));
   });
   document.querySelector("#saveTravelOrigin").addEventListener("click", handleSaveTravelOrigin);
+  document.querySelector("#shareProgress").addEventListener("click", shareProgress);
+  document.querySelector("#copyProgressLink").addEventListener("click", () => copyProgressLink());
+  document.querySelector("#confirmProgressImport").addEventListener("click", mergeSharedProgress);
   document.addEventListener("click", handleSuggestionClick);
   map.on("popupopen", bindStampPopupControls);
   document.querySelector("#segmentList").addEventListener("change", handleSegmentListChange);
@@ -1930,6 +2118,8 @@ function switchTab(tab, shouldExpand = false) {
   document.querySelector("#travelView").classList.toggle("active", view === "travel");
   document.querySelector("#progressView").classList.toggle("active", view === "progress");
   document.querySelector("#moreView").classList.toggle("active", view === "more");
+
+  if (view === "more") refreshProgressShareUi();
 
   if (view === "travel") {
     if (state.selectedSegments.length) {
