@@ -1472,6 +1472,7 @@ html[data-view="travel"] .elevation-dock {
 
   .bottom-nav {
     flex: 0 0 auto;
+    margin-top: auto;
     padding: 6px 10px max(7px, env(safe-area-inset-bottom));
     border-top: 1px solid rgba(88, 112, 140, 0.22);
     background: rgba(250, 252, 254, 0.34);
