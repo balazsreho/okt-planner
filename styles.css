@@ -1663,10 +1663,6 @@ h2 {
     align-items: flex-end;
   }
 
-  .desktop-trail-switcher {
-    display: none;
-  }
-
   .bottom-nav {
     flex: 0 0 auto;
     margin-top: auto;
