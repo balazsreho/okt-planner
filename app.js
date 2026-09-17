@@ -244,6 +244,7 @@ function init() {
     zoomAnimation: false,
     fadeAnimation: false,
     markerZoomAnimation: false,
+    zoomSnap: 0.25,
   }).setView([47.16, 19.5], 7);
 
   L.control.zoom({ position: "topright" }).addTo(map);
@@ -256,6 +257,7 @@ function init() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(map);
   stampLayerGroup = L.layerGroup().addTo(map);
+  initOneFingerMapZoom();
 
   loadTrail(activeTrailId);
   state.selectedSegments = normalizeSelection(state.selectedSegments);
@@ -869,6 +871,140 @@ function bindControls() {
   });
   initBottomSheet();
   syncTrailButtons();
+}
+
+function initOneFingerMapZoom() {
+  const container = map.getContainer();
+  const doubleTapDelay = 350;
+  const tapRadius = 32;
+  const dragThreshold = 6;
+  const pixelsPerZoomLevel = 88;
+  let tapCandidate = null;
+  let lastTap = null;
+  let gesture = null;
+  let suppressMapClickUntil = 0;
+
+  const getContainerPoint = (event) => {
+    const bounds = container.getBoundingClientRect();
+    return L.point(event.clientX - bounds.left, event.clientY - bounds.top);
+  };
+
+  const stopGestureEvent = (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
+  const finishGesture = (event, wasCancelled = false) => {
+    if (!gesture || event.pointerId !== gesture.pointerId) return;
+    if (!wasCancelled && !gesture.didDrag) {
+      map.setZoomAround(gesture.anchor, Math.min(gesture.startZoom + 1, map.getMaxZoom()), { animate: false });
+    }
+    if (gesture.wasDraggingEnabled) map.dragging.enable();
+    if (gesture.wasTouchZoomEnabled) map.touchZoom.enable();
+    if (container.hasPointerCapture?.(event.pointerId)) container.releasePointerCapture(event.pointerId);
+    gesture = null;
+    suppressMapClickUntil = performance.now() + 500;
+    stopGestureEvent(event);
+  };
+
+  container.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.pointerType === "mouse" || !event.isPrimary || event.button !== 0) return;
+      const now = performance.now();
+      const isSecondTap =
+        lastTap &&
+        now - lastTap.time <= doubleTapDelay &&
+        Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) <= tapRadius;
+
+      if (!isSecondTap) {
+        if (lastTap && now - lastTap.time > doubleTapDelay) lastTap = null;
+        tapCandidate = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          time: now,
+        };
+        return;
+      }
+
+      const point = getContainerPoint(event);
+      gesture = {
+        pointerId: event.pointerId,
+        startY: event.clientY,
+        startZoom: map.getZoom(),
+        anchor: map.containerPointToLatLng(point),
+        didDrag: false,
+        wasDraggingEnabled: map.dragging.enabled(),
+        wasTouchZoomEnabled: map.touchZoom.enabled(),
+      };
+      lastTap = null;
+      tapCandidate = null;
+      map.dragging.disable();
+      map.touchZoom.disable();
+      container.setPointerCapture?.(event.pointerId);
+      stopGestureEvent(event);
+    },
+    true,
+  );
+
+  container.addEventListener(
+    "pointermove",
+    (event) => {
+      if (gesture && event.pointerId === gesture.pointerId) {
+        const distance = event.clientY - gesture.startY;
+        if (Math.abs(distance) >= dragThreshold) gesture.didDrag = true;
+        if (gesture.didDrag) {
+          const rawZoom = gesture.startZoom + distance / pixelsPerZoomLevel;
+          const boundedZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), rawZoom));
+          const targetZoom = Math.round(boundedZoom * 4) / 4;
+          if (targetZoom !== map.getZoom()) map.setZoomAround(gesture.anchor, targetZoom, { animate: false });
+        }
+        stopGestureEvent(event);
+        return;
+      }
+
+      if (
+        tapCandidate &&
+        event.pointerId === tapCandidate.pointerId &&
+        Math.hypot(event.clientX - tapCandidate.x, event.clientY - tapCandidate.y) > dragThreshold
+      ) {
+        tapCandidate = null;
+      }
+    },
+    true,
+  );
+
+  container.addEventListener(
+    "pointerup",
+    (event) => {
+      if (gesture) {
+        finishGesture(event);
+        return;
+      }
+      if (tapCandidate?.pointerId !== event.pointerId) return;
+      const duration = performance.now() - tapCandidate.time;
+      const distance = Math.hypot(event.clientX - tapCandidate.x, event.clientY - tapCandidate.y);
+      if (duration <= 280 && distance <= dragThreshold) {
+        lastTap = { time: performance.now(), x: event.clientX, y: event.clientY };
+      }
+      tapCandidate = null;
+    },
+    true,
+  );
+
+  container.addEventListener("pointercancel", (event) => finishGesture(event, true), true);
+  ["click", "dblclick"].forEach((eventName) => {
+    container.addEventListener(
+      eventName,
+      (event) => {
+        if (performance.now() >= suppressMapClickUntil) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true,
+    );
+  });
 }
 
 function setInitialView() {
