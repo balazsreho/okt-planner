@@ -17,6 +17,8 @@ const daySuggestionBands = [
 const transitousPlanUrl = "https://api.transitous.org/api/v6/plan";
 const nominatimSearchUrl = "https://nominatim.openstreetmap.org/search";
 const photonSearchUrl = "https://photon.komoot.io/api/";
+const analyticsMeasurementId = "G-124Z07M0NK";
+const analyticsConsentStorageKey = "kekkor-analytics-consent";
 const budapestOrigin = {
   name: "Budapest-Keleti",
   lat: 47.5003,
@@ -224,6 +226,9 @@ let addressSuggestions = [];
 let activeAddressSuggestionIndex = -1;
 let pendingTravelOrigin = null;
 const addressSuggestionCache = new Map();
+let analyticsConsent = loadAnalyticsConsent();
+let analyticsLoaded = false;
+let lastTrackedView = null;
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -265,6 +270,7 @@ function init() {
   renderMap();
   renderLists();
   bindControls();
+  initAnalytics();
   setInitialView();
   initTravelControls();
   syncTravelSettingsUi();
@@ -277,6 +283,148 @@ function init() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+
+function loadAnalyticsConsent() {
+  try {
+    const value = localStorage.getItem(analyticsConsentStorageKey);
+    return value === "granted" || value === "denied" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasAnalyticsPrivacySignal() {
+  return navigator.globalPrivacyControl === true || navigator.doNotTrack === "1";
+}
+
+function canSendAnalytics() {
+  const isLocal = ["", "localhost", "127.0.0.1", "::1"].includes(location.hostname);
+  return location.protocol === "https:" && !isLocal && !navigator.webdriver && !hasAnalyticsPrivacySignal();
+}
+
+function initAnalytics() {
+  document.querySelector("#analyticsToggle")?.addEventListener("click", () => {
+    setAnalyticsConsent(analyticsConsent !== "granted");
+  });
+  document.querySelector("#allowAnalytics")?.addEventListener("click", () => setAnalyticsConsent(true));
+  document.querySelector("#declineAnalytics")?.addEventListener("click", () => setAnalyticsConsent(false));
+
+  if (hasAnalyticsPrivacySignal()) {
+    window[`ga-disable-${analyticsMeasurementId}`] = true;
+  } else if (analyticsConsent === "granted") {
+    loadGoogleAnalytics();
+  } else if (analyticsConsent === null) {
+    document.querySelector("#analyticsConsent").hidden = false;
+  }
+  syncAnalyticsUi();
+}
+
+function setAnalyticsConsent(isGranted) {
+  analyticsConsent = isGranted ? "granted" : "denied";
+  try {
+    localStorage.setItem(analyticsConsentStorageKey, analyticsConsent);
+  } catch {
+    // Consent still applies for this session when storage is unavailable.
+  }
+  document.querySelector("#analyticsConsent").hidden = true;
+
+  if (isGranted && !hasAnalyticsPrivacySignal()) {
+    loadGoogleAnalytics();
+    trackAppView(document.documentElement.dataset.view || "plan", true);
+  } else {
+    disableGoogleAnalytics();
+  }
+  syncAnalyticsUi();
+}
+
+function loadGoogleAnalytics() {
+  if (analyticsConsent !== "granted" || !canSendAnalytics()) return;
+  window[`ga-disable-${analyticsMeasurementId}`] = false;
+  window.dataLayer = window.dataLayer || [];
+  window.gtag =
+    window.gtag ||
+    function gtag() {
+      window.dataLayer.push(arguments);
+    };
+
+  if (analyticsLoaded) {
+    window.gtag("consent", "update", { analytics_storage: "granted" });
+    return;
+  }
+
+  window.gtag("consent", "default", {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "denied",
+  });
+  window.gtag("consent", "update", { analytics_storage: "granted" });
+  window.gtag("set", "ads_data_redaction", true);
+  window.gtag("js", new Date());
+  window.gtag("config", analyticsMeasurementId, {
+    send_page_view: false,
+    allow_google_signals: false,
+    allow_ad_personalization_signals: false,
+    page_location: `${location.origin}${location.pathname}`,
+  });
+
+  const script = document.createElement("script");
+  script.id = "googleAnalyticsScript";
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(analyticsMeasurementId)}`;
+  document.head.append(script);
+  analyticsLoaded = true;
+}
+
+function disableGoogleAnalytics() {
+  window[`ga-disable-${analyticsMeasurementId}`] = true;
+  window.gtag?.("consent", "update", {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "denied",
+  });
+  document.cookie.split(";").forEach((cookie) => {
+    const name = cookie.split("=")[0].trim();
+    if (!name.startsWith("_ga")) return;
+    document.cookie = `${name}=; Max-Age=0; path=/; SameSite=Lax`;
+  });
+  lastTrackedView = null;
+}
+
+function syncAnalyticsUi() {
+  const toggle = document.querySelector("#analyticsToggle");
+  const status = document.querySelector("#analyticsStatus");
+  const hasPrivacySignal = hasAnalyticsPrivacySignal();
+  const isGranted = analyticsConsent === "granted" && !hasPrivacySignal;
+  if (toggle) {
+    toggle.setAttribute("aria-checked", String(isGranted));
+    toggle.disabled = hasPrivacySignal;
+  }
+  if (!status) return;
+  if (hasPrivacySignal) {
+    status.textContent = "Disabled by your browser privacy preference.";
+  } else if (analyticsConsent === "granted") {
+    status.textContent = canSendAnalytics()
+      ? "Anonymous usage analytics is enabled."
+      : "Enabled for the published app; previews are not tracked.";
+  } else {
+    status.textContent = "Analytics is off.";
+  }
+}
+
+function trackAppView(view, force = false) {
+  if (analyticsConsent !== "granted" || !canSendAnalytics() || !window.gtag) return;
+  if (!force && lastTrackedView === view) return;
+  const titles = { plan: "Plan", travel: "Travel", progress: "Progress", more: "Settings" };
+  const pageName = titles[view] || "Plan";
+  window.gtag("event", "page_view", {
+    page_title: `Kékkör Planner · ${pageName}`,
+    page_location: `${location.origin}${location.pathname}#/${view}`,
+    page_path: `/${view}`,
+  });
+  lastTrackedView = view;
 }
 
 function parseSegments(csv) {
@@ -2625,6 +2773,7 @@ function switchTab(tab, shouldExpand = false) {
   document.querySelector("#travelView").classList.toggle("active", view === "travel");
   document.querySelector("#progressView").classList.toggle("active", view === "progress");
   document.querySelector("#moreView").classList.toggle("active", view === "more");
+  trackAppView(view);
 
   if (view === "more") refreshProgressShareUi();
 
