@@ -239,13 +239,15 @@ function init() {
   trailRenderer = L.svg({ padding: 0.35 });
   map = L.map("map", {
     zoomControl: false,
+    attributionControl: false,
     renderer: trailRenderer,
     zoomAnimation: false,
     fadeAnimation: false,
     markerZoomAnimation: false,
   }).setView([47.16, 19.5], 7);
 
-  L.control.zoom({ position: "bottomright" }).addTo(map);
+  L.control.zoom({ position: "topright" }).addTo(map);
+  L.control.attribution({ position: "topright", prefix: false }).addTo(map);
   tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     updateWhenIdle: true,
