@@ -19,7 +19,7 @@ const nominatimSearchUrl = "https://nominatim.openstreetmap.org/search";
 const photonSearchUrl = "https://photon.komoot.io/api/";
 const analyticsMeasurementId = "G-124Z07M0NK";
 const analyticsConsentStorageKey = "kekkor-analytics-consent";
-const stampLabelMinZoom = 12;
+const stampLabelMinZoom = 10;
 const budapestOrigin = {
   name: "Budapest-Keleti",
   lat: 47.5003,
