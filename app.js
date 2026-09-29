@@ -19,6 +19,7 @@ const nominatimSearchUrl = "https://nominatim.openstreetmap.org/search";
 const photonSearchUrl = "https://photon.komoot.io/api/";
 const analyticsMeasurementId = "G-124Z07M0NK";
 const analyticsConsentStorageKey = "kekkor-analytics-consent";
+const stampLabelMinZoom = 12;
 const budapestOrigin = {
   name: "Budapest-Keleti",
   lat: 47.5003,
@@ -263,6 +264,7 @@ function init() {
   }).addTo(map);
   stampLayerGroup = L.layerGroup().addTo(map);
   initOneFingerMapZoom();
+  map.on("zoomend moveend", syncStampLabels);
 
   loadTrail(activeTrailId);
   state.selectedSegments = normalizeSelection(state.selectedSegments);
@@ -896,6 +898,27 @@ function renderMap() {
     hitMarker.bindPopup(popupContent, popupOptions);
     stampMarkers.set(stamp.id, marker);
     stampHitMarkers.set(stamp.id, hitMarker);
+  });
+  syncStampLabels();
+}
+
+function syncStampLabels() {
+  const shouldShowLabels = map.getZoom() >= stampLabelMinZoom;
+  const visibleBounds = shouldShowLabels ? map.getBounds() : null;
+  stampMarkers.forEach((marker, stampId) => {
+    const shouldShow = shouldShowLabels && visibleBounds.contains(marker.getLatLng());
+    if (shouldShow && !marker.getTooltip()) {
+      marker
+        .bindTooltip(stampById.get(stampId)?.name || "Stamp", {
+          permanent: true,
+          direction: "auto",
+          offset: [8, 0],
+          opacity: 1,
+          className: "stamp-name-tooltip",
+        })
+        .openTooltip();
+    }
+    if (!shouldShow && marker.getTooltip()) marker.unbindTooltip();
   });
 }
 
