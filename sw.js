@@ -1,13 +1,13 @@
-const CACHE_NAME = "okt-planner-v69";
+const CACHE_NAME = "okt-planner-v70";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./route-geometry.js",
-  "./route-details-okt.json?v=69",
-  "./route-details-ak.json?v=69",
-  "./route-details-rpddk.json?v=69",
+  "./route-details-okt.json?v=70",
+  "./route-details-ak.json?v=70",
+  "./route-details-rpddk.json?v=70",
   "./trail-route-data.js",
   "./vendor/qrcode.min.js",
   "./manifest.webmanifest",

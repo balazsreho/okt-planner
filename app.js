@@ -2,6 +2,7 @@ const trails = window.TRAIL_ROUTE_DATA || {};
 const defaultTrailId = trails.okt ? "okt" : Object.keys(trails)[0];
 const activeTrailStorageKey = "kekkor-active-trail";
 const stateStoragePrefix = "kekkor-planner-state";
+const compassAccessStorageKey = "kekkor-compass-access";
 const navigationSettingsStorageKey = "kekkor-navigation-settings";
 const travelSettingsStorageKey = "kekkor-travel-settings";
 const progressShareHashKey = "progress";
@@ -239,6 +240,7 @@ let userAccuracyCircle = null;
 let userHeadingMarker = null;
 let compassHeading = null;
 let compassListening = false;
+let compassAccessRemembered = loadCompassAccess();
 let navigationSettings = loadNavigationSettings();
 const routeDetailCache = new Map();
 const routeDetailRequests = new Map();
@@ -3157,6 +3159,7 @@ function handleCompassOrientation(event) {
   const status = document.querySelector("#compassStatus");
   if (status) status.textContent = compassHeading !== null ? "Compass on" : "Waiting for compass…";
   if (compassHeading !== null) {
+    rememberCompassAccess(true);
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = true;
   }
@@ -3169,7 +3172,18 @@ function prepareCompass() {
   if (typeof window.DeviceOrientationEvent.requestPermission === "function") {
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = false;
+    if (compassAccessRemembered) requestCompassAccess(true);
   }
+}
+
+function loadCompassAccess() {
+  try { return localStorage.getItem(compassAccessStorageKey) === "granted"; } catch { return false; }
+}
+
+function rememberCompassAccess(granted) {
+  if (compassAccessRemembered === granted) return;
+  compassAccessRemembered = granted;
+  try { localStorage.setItem(compassAccessStorageKey, granted ? "granted" : "unknown"); } catch {}
 }
 
 async function enableCompass() {
@@ -3179,11 +3193,17 @@ async function enableCompass() {
   }
   navigationSettings.compass = true;
   saveNavigationSettings();
+  return requestCompassAccess(false);
+}
+
+async function requestCompassAccess(automatic) {
   const status = document.querySelector("#compassStatus");
   try {
-    // Must be called directly by a tap for iOS's sensor permission prompt.
+    // A previously granted permission may be restored without a gesture.
+    // First-time permission still comes directly from the Settings button tap.
     const result = typeof window.DeviceOrientationEvent?.requestPermission === "function"
       ? await window.DeviceOrientationEvent.requestPermission() : "granted";
+    rememberCompassAccess(result === "granted");
     if (locationWatchId === null || !navigationSettings.location || !navigationSettings.compass) return;
     if (result !== "granted") {
       if (status) status.textContent = "Compass permission denied. GPS direction still works while moving.";
@@ -3193,7 +3213,12 @@ async function enableCompass() {
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = true;
   } catch {
-    if (status) status.textContent = "Compass unavailable. GPS direction works while moving.";
+    if (locationWatchId === null || !navigationSettings.compass || compassHeading !== null) return;
+    const permissionButton = document.querySelector("#compassPermissionButton");
+    if (permissionButton) permissionButton.hidden = false;
+    if (status) status.textContent = automatic
+      ? "Your compass preference is saved, but iOS needs a tap. Choose Allow compass access here."
+      : "Compass unavailable. GPS direction works while moving.";
   }
 }
 
@@ -3345,7 +3370,7 @@ async function loadRouteDetails(trailId) {
   if (loadingStatus) loadingStatus.textContent = "Loading detailed GPX…";
   try {
     if (!routeDetailCache.has(trailId)) {
-      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=69`).then(response => {
+      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=70`).then(response => {
         if (!response.ok) throw new Error("GPX detail unavailable");
         return response.json();
       }));
