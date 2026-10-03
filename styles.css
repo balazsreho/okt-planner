@@ -2384,3 +2384,13 @@ h2 {
 .user-heading-icon { background: transparent; border: 0; pointer-events: none; }
 .user-heading-rotor { width: 60px; height: 60px; transform-origin: 30px 30px; }
 .user-heading-rotor svg { display: block; }
+
+.remaining-route-stats { display: grid; grid-template-columns: 1fr 1fr 1.7fr; gap: 4px 8px; padding: 6px 0; margin: 0 4px 4px; border-bottom: 1px solid var(--glass-border); color: var(--ink); font-size: 12px; }
+.remaining-route-stats[hidden] { display: none; }
+.remaining-destination { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+.popup-hikes { border-top: 1px solid #d9e1e8; padding-top: 8px; }
+.popup-hikes summary { cursor: pointer; font-weight: 700; font-size: 12px; }
+.popup-hikes[open] .popup-direction-switch { margin-top: 8px; }
+.popup-hikes[open] { max-height: 280px; overflow-y: auto; }
+#navigationSettingsStatus, #mapDetailStatus { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+#compassPermissionButton { margin-top: 8px; }

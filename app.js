@@ -2,6 +2,7 @@ const trails = window.TRAIL_ROUTE_DATA || {};
 const defaultTrailId = trails.okt ? "okt" : Object.keys(trails)[0];
 const activeTrailStorageKey = "kekkor-active-trail";
 const stateStoragePrefix = "kekkor-planner-state";
+const navigationSettingsStorageKey = "kekkor-navigation-settings";
 const travelSettingsStorageKey = "kekkor-travel-settings";
 const progressShareHashKey = "progress";
 const trailPalettes = {
@@ -11,8 +12,8 @@ const trailPalettes = {
 };
 const daySuggestionBands = [
   { key: "easy", label: "Easy", minDistance: 8, idealDistance: 12, maxDistance: 16 },
-  { key: "normal", label: "Normal", minDistance: 16, idealDistance: 20, maxDistance: 25 },
-  { key: "long", label: "Long", minDistance: 24, idealDistance: 30, maxDistance: 36 },
+  { key: "normal", label: "Medium", minDistance: 16, idealDistance: 20, maxDistance: 25 },
+  { key: "long", label: "Hard", minDistance: 24, idealDistance: 30, maxDistance: 36 },
 ];
 const transitousPlanUrl = "https://api.transitous.org/api/v6/plan";
 const nominatimSearchUrl = "https://nominatim.openstreetmap.org/search";
@@ -238,6 +239,9 @@ let userAccuracyCircle = null;
 let userHeadingMarker = null;
 let compassHeading = null;
 let compassListening = false;
+let navigationSettings = loadNavigationSettings();
+const routeDetailCache = new Map();
+const routeDetailRequests = new Map();
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -274,6 +278,7 @@ function init() {
   initOneFingerMapZoom();
   initLocationControl();
   map.on("zoomend moveend", syncStampLabels);
+  map.on("zoomend moveend", syncBaseRouteLayer);
 
   loadTrail(activeTrailId);
   state.selectedSegments = normalizeSelection(state.selectedSegments);
@@ -287,6 +292,7 @@ function init() {
   syncTravelSettingsUi();
   updateUi();
   initProgressSharing();
+  initNavigationSettings();
   refreshMapLayout(true);
   if (useLiveOfficialGeometry) loadOfficialGeometry();
 }
@@ -506,6 +512,7 @@ function loadTrail(trailId) {
   geometrySource = activeTrail.geometrySource || "Bundled GPX";
   state = loadState(activeTrailId);
   applyTrailTheme();
+  loadRouteDetails(activeTrailId);
 }
 
 function switchTrail(trailId) {
@@ -865,7 +872,7 @@ function renderMap() {
   stampHitMarkers.clear();
 
   baseRouteLayer = L.polyline(
-    segments.map((segment) => segment.points),
+    segments.flatMap(getRenderedSegmentPoints),
     {
       color: getTrailColor(),
       renderer: trailRenderer,
@@ -874,6 +881,7 @@ function renderMap() {
       lineCap: "round",
       lineJoin: "round",
       interactive: false,
+      smoothFactor: 0.6,
     },
   ).addTo(map);
 
@@ -1429,6 +1437,7 @@ function updateSummaryAndProfile() {
   syncTravelPanel(selected, selectedTotals);
 
   renderElevation(selected);
+  renderRemainingRouteStats(selected);
 }
 
 function setSegmentSelected(segmentId, checked) {
@@ -1565,6 +1574,7 @@ function getStampPopupContent(stamp, stampIndex) {
       <strong>${title}</strong>
       <span>${altitude}</span>
       ${renderStampLocations(stamp)}
+      <details class="popup-hikes"><summary>Recommended hikes · Easy / Medium / Hard</summary>
       <div class="popup-direction-switch">
         <input class="popup-direction-input popup-dir-forward" id="${forwardId}" type="radio" name="popup-direction-${activeTrailId}-${stampIndex}" ${isReverse ? "" : "checked"} />
         <input class="popup-direction-input popup-dir-reverse" id="${reverseId}" type="radio" name="popup-direction-${activeTrailId}-${stampIndex}" ${isReverse ? "checked" : ""} />
@@ -1575,6 +1585,7 @@ function getStampPopupContent(stamp, stampIndex) {
         ${renderPopupSuggestionPane(stampIndex, "forward")}
         ${renderPopupSuggestionPane(stampIndex, "reverse")}
       </div>
+      </details>
     </div>
   `;
 }
@@ -2577,7 +2588,9 @@ function setSectionStamped(sectionId, checked) {
 
 function syncBaseRouteLayer() {
   if (!baseRouteLayer) return;
-  baseRouteLayer.setLatLngs(segments.map((segment) => segment.points));
+  baseRouteLayer.setLatLngs(segments.flatMap(getRenderedSegmentPoints));
+  refreshHighlightedLayers();
+  userLocationMarker?.bringToFront();
 }
 
 function refreshHighlightedLayers(selectedIds = new Set(state.selectedSegments), completedIds = new Set(state.completedSegments)) {
@@ -2617,15 +2630,21 @@ function refreshHighlightedLayer(segmentId) {
 
 function upsertHighlightedLayer(segment, color) {
   const existing = highlightedLayers.get(segment.id);
+  const renderedPoints = getRenderedSegmentPoints(segment);
+  if (!renderedPoints.length) {
+    existing?.remove();
+    highlightedLayers.delete(segment.id);
+    return;
+  }
   if (existing) {
-    existing.setLatLngs(segment.points);
+    existing.setLatLngs(renderedPoints);
     existing.setStyle({ color });
     return;
   }
 
   highlightedLayers.set(
     segment.id,
-    L.polyline(segment.points, {
+    L.polyline(renderedPoints, {
       color,
       renderer: trailRenderer,
       weight: 8,
@@ -2773,13 +2792,15 @@ function selectNearestSegment(event) {
   let nearestDistance = Infinity;
 
   segments.forEach((segment) => {
-    for (let index = 1; index < segment.points.length; index += 1) {
-      const start = map.latLngToLayerPoint(segment.points[index - 1]);
-      const end = map.latLngToLayerPoint(segment.points[index]);
-      const distance = pointToSegmentDistance(clickPoint, start, end);
-      if (distance < nearestDistance || (Math.abs(distance - nearestDistance) < 0.01 && nearestSegment && segment.number > nearestSegment.number)) {
-        nearestDistance = distance;
-        nearestSegment = segment;
+    for (const points of getRenderedSegmentPoints(segment)) {
+      for (let index = 1; index < points.length; index += 1) {
+        const start = map.latLngToLayerPoint(points[index - 1]);
+        const end = map.latLngToLayerPoint(points[index]);
+        const distance = pointToSegmentDistance(clickPoint, start, end);
+        if (distance < nearestDistance || (Math.abs(distance - nearestDistance) < 0.01 && nearestSegment && segment.number > nearestSegment.number)) {
+          nearestDistance = distance;
+          nearestSegment = segment;
+        }
       }
     }
   });
@@ -2839,14 +2860,18 @@ function switchTab(tab, shouldExpand = false) {
 }
 
 function fitMap() {
-  const bounds = L.latLngBounds(segments.flatMap((segment) => segment.points));
+  const bounds = L.latLngBounds(segments.flatMap((segment) => segment.detail
+    ? [[segment.detail.bounds[0], segment.detail.bounds[1]], [segment.detail.bounds[2], segment.detail.bounds[3]]]
+    : segment.points));
   map.fitBounds(bounds, { padding: [36, 36] });
 }
 
 function fitSelectedSegments() {
   const selected = segments.filter((segment) => state.selectedSegments.includes(segment.id));
   if (!selected.length) return;
-  const points = selected.flatMap((segment) => segment.points);
+  const points = selected.flatMap((segment) => segment.detail
+    ? [[segment.detail.bounds[0], segment.detail.bounds[1]], [segment.detail.bounds[2], segment.detail.bounds[3]]]
+    : segment.points);
   if (!points.length) return;
   const isMobile = window.matchMedia("(max-width: 860px)").matches;
   map.fitBounds(L.latLngBounds(points), {
@@ -3017,8 +3042,9 @@ function nearestRoutePosition(position, routeSegments) {
   for (const segment of routeSegments) {
     let traversed = 0;
     const edges = [];
-    for (let i = 1; i < segment.points.length; i += 1) {
-      const a = segment.points[i - 1], b = segment.points[i];
+    const points = segment.detail?.levels[4] || segment.points;
+    for (let i = 1; i < points.length; i += 1) {
+      const a = points[i - 1], b = points[i];
       const ax = (a[1] - position.lng) * longitudeScale;
       const ay = (a[0] - position.lat) * metresPerDegree;
       const dx = (b[1] - a[1]) * longitudeScale;
@@ -3066,19 +3092,28 @@ function initLocationControl() {
 }
 
 function toggleLocationTracking() {
+  setLocationEnabled(locationWatchId === null);
+}
+
+function stopLocationTracking() {
+  if (locationWatchId !== null) navigator.geolocation.clearWatch(locationWatchId);
+  locationWatchId = null;
+  stopCompass();
+  currentPosition = null;
   const button = document.querySelector("#locationButton");
-  const status = document.querySelector("#locationStatus");
-  if (locationWatchId !== null) {
-    navigator.geolocation.clearWatch(locationWatchId);
-    locationWatchId = null;
-    stopCompass();
-    currentPosition = null;
+  if (button) {
     button.setAttribute("aria-pressed", "false");
     button.textContent = "◎ My location";
-    status.textContent = "";
-    refreshUserLocation();
-    return;
   }
+  const status = document.querySelector("#locationStatus");
+  if (status) status.textContent = "";
+  refreshUserLocation();
+}
+
+function startLocationTracking() {
+  if (locationWatchId !== null) return;
+  const button = document.querySelector("#locationButton");
+  const status = document.querySelector("#locationStatus");
   if (!navigator.geolocation || !window.isSecureContext) {
     status.textContent = "Location requires HTTPS and a browser with GPS support.";
     return;
@@ -3086,8 +3121,9 @@ function toggleLocationTracking() {
   status.textContent = "Finding your location…";
   button.setAttribute("aria-pressed", "true");
   button.textContent = "◎ Stop location";
-  prepareCompass();
+  if (navigationSettings.compass) prepareCompass();
   locationWatchId = navigator.geolocation.watchPosition((position) => {
+    if (locationWatchId === null || !navigationSettings.location) return;
     currentPosition = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy, heading: position.coords.heading, speed: position.coords.speed };
     refreshUserLocation();
   }, (error) => {
@@ -3125,7 +3161,9 @@ function refreshUserLocation() {
     ? `Near route · GPS ±${Math.round(currentPosition.accuracy)} m`
     : "More than 2 km from this trail";
   refreshHeadingMarker();
-  renderElevation(segments.filter((segment) => state.selectedSegments.includes(segment.id)));
+  const selected = segments.filter((segment) => state.selectedSegments.includes(segment.id));
+  renderElevation(selected);
+  renderRemainingRouteStats(selected);
 }
 
 function getCompassHeading(event) {
@@ -3142,30 +3180,46 @@ function getCompassHeading(event) {
 }
 
 function handleCompassOrientation(event) {
+  if (!navigationSettings.compass || locationWatchId === null) return;
   if (!Number.isFinite(event.webkitCompassHeading) && event.absolute !== true && event.type !== "deviceorientationabsolute") return;
   compassHeading = getCompassHeading(event);
   const status = document.querySelector("#compassStatus");
   if (status) status.textContent = compassHeading !== null ? "Compass on" : "Waiting for compass…";
+  if (compassHeading !== null) {
+    const button = document.querySelector("#compassButton");
+    if (button) button.hidden = true;
+    const permissionButton = document.querySelector("#compassPermissionButton");
+    if (permissionButton) permissionButton.hidden = true;
+  }
   refreshHeadingMarker();
 }
 
 function prepareCompass() {
   const button = document.querySelector("#compassButton");
-  if (!window.DeviceOrientationEvent) return;
+  if (!window.DeviceOrientationEvent || !navigationSettings.compass) return;
+  startCompass();
   if (typeof window.DeviceOrientationEvent.requestPermission === "function") {
     if (button) button.hidden = false;
+    const permissionButton = document.querySelector("#compassPermissionButton");
+    if (permissionButton) permissionButton.hidden = false;
   } else {
     startCompass();
   }
 }
 
 async function enableCompass() {
+  if (!navigationSettings.location) {
+    document.querySelector("#navigationSettingsStatus").textContent = "Enable location first to show the compass arrow.";
+    return;
+  }
+  navigationSettings.compass = true;
+  saveNavigationSettings();
   const status = document.querySelector("#compassStatus");
   try {
     // Must be called directly by a tap for iOS's sensor permission prompt.
     const result = typeof window.DeviceOrientationEvent?.requestPermission === "function"
       ? await window.DeviceOrientationEvent.requestPermission() : "granted";
-    if (locationWatchId === null) return;
+    if (locationWatchId === null || !navigationSettings.location || !navigationSettings.compass) return;
     if (result !== "granted") {
       if (status) status.textContent = "Compass permission denied. GPS direction still works while moving.";
       return;
@@ -3173,6 +3227,8 @@ async function enableCompass() {
     startCompass();
     const button = document.querySelector("#compassButton");
     if (button) button.hidden = true;
+    const permissionButton = document.querySelector("#compassPermissionButton");
+    if (permissionButton) permissionButton.hidden = true;
   } catch {
     if (status) status.textContent = "Compass unavailable. GPS direction works while moving.";
   }
@@ -3196,12 +3252,14 @@ function stopCompass() {
   const status = document.querySelector("#compassStatus");
   if (button) button.hidden = true;
   if (status) status.textContent = "";
+  const permissionButton = document.querySelector("#compassPermissionButton");
+  if (permissionButton) permissionButton.hidden = true;
 }
 
 function refreshHeadingMarker() {
   const gpsHeading = currentPosition && Number.isFinite(currentPosition.heading) && currentPosition.speed >= 0.5
     ? currentPosition.heading : null;
-  const heading = compassHeading ?? gpsHeading;
+  const heading = navigationSettings.compass ? compassHeading ?? gpsHeading : null;
   if (!userLocationMarker || !currentPosition || heading === null) {
     userHeadingMarker?.remove();
     userHeadingMarker = null;
@@ -3223,4 +3281,137 @@ function refreshHeadingMarker() {
   userHeadingMarker.setLatLng(latlng);
   const rotor = userHeadingMarker.getElement()?.querySelector(".user-heading-rotor");
   if (rotor) rotor.style.transform = `rotate(${heading}deg)`;
+}
+
+function loadNavigationSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(navigationSettingsStorageKey));
+    return { location: saved?.location !== false, compass: saved?.compass !== false };
+  } catch { return { location: true, compass: true }; }
+}
+
+function saveNavigationSettings() {
+  try { localStorage.setItem(navigationSettingsStorageKey, JSON.stringify(navigationSettings)); } catch {}
+  syncNavigationSettings();
+}
+
+function syncNavigationSettings() {
+  document.querySelector("#locationSetting")?.setAttribute("aria-checked", String(navigationSettings.location));
+  document.querySelector("#compassSetting")?.setAttribute("aria-checked", String(navigationSettings.compass));
+  const status = document.querySelector("#navigationSettingsStatus");
+  if (status) status.textContent = navigationSettings.location
+    ? `Location on · compass ${navigationSettings.compass ? "on" : "off"}. Browser access may still be required.`
+    : "Location is off. Enable it here to show your position and remaining route stats.";
+}
+
+function setLocationEnabled(enabled) {
+  navigationSettings.location = enabled;
+  saveNavigationSettings();
+  if (enabled) startLocationTracking();
+  else stopLocationTracking();
+}
+
+function initNavigationSettings() {
+  syncNavigationSettings();
+  document.querySelector("#locationSetting").addEventListener("click", () => setLocationEnabled(!navigationSettings.location));
+  document.querySelector("#compassSetting").addEventListener("click", () => {
+    navigationSettings.compass = !navigationSettings.compass;
+    saveNavigationSettings();
+    if (navigationSettings.compass && navigationSettings.location) {
+      prepareCompass();
+      if (typeof window.DeviceOrientationEvent?.requestPermission === "function") enableCompass();
+    } else stopCompass();
+    refreshHeadingMarker();
+  });
+  document.querySelector("#compassPermissionButton").addEventListener("click", enableCompass);
+  if (navigationSettings.location) startLocationTracking();
+}
+
+function remainingSegmentStats(segment, fraction, reverse) {
+  fraction = Math.max(0, Math.min(1, fraction));
+  const remainingFraction = reverse ? fraction : 1 - fraction;
+  const samples = segment.elevationSamples || [];
+  const sampleDistance = samples.at(-1)?.distance || segment.distance;
+  let allUp = 0, allDown = 0, partialUp = 0, partialDown = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1], b = samples[i];
+    const start = a.distance / sampleDistance, end = b.distance / sampleDistance;
+    const overlap = end > start ? Math.max(0, (reverse ? Math.min(end, fraction) - start : end - Math.max(start, fraction))) / (end - start) : 0;
+    const delta = b.altitude - a.altitude;
+    if (delta >= 0) { allUp += delta; partialUp += delta * overlap; }
+    else { allDown -= delta; partialDown -= delta * overlap; }
+  }
+  const forwardUp = segment.up * (allUp ? partialUp / allUp : remainingFraction);
+  const forwardDown = segment.down * (allDown ? partialDown / allDown : remainingFraction);
+  const up = reverse ? forwardDown : forwardUp, down = reverse ? forwardUp : forwardDown;
+  const distance = segment.distance * remainingFraction;
+  const totalUp = reverse ? segment.down : segment.up;
+  // Scale the segment's published estimate by remaining walking/climbing work.
+  const work = segment.distance * 15 + totalUp / 10;
+  const minutes = (reverse ? segment.reverseMinutes : segment.minutes) * (work ? (distance * 15 + up / 10) / work : remainingFraction);
+  return { distance, up, down, minutes };
+}
+
+function getRemainingRouteStats(selected, position, reverse) {
+  if (!position || position.distance > 2000 || !selected.length) return null;
+  const index = selected.findIndex(segment => segment.id === position.segmentId);
+  if (index < 0) return null;
+  const partial = remainingSegmentStats(selected[index], position.fraction, reverse);
+  const rest = reverse ? selected.slice(0, index) : selected.slice(index + 1);
+  for (const segment of rest) {
+    partial.distance += segment.distance;
+    partial.minutes += reverse ? segment.reverseMinutes : segment.minutes;
+    partial.up += reverse ? segment.down : segment.up;
+    partial.down += reverse ? segment.up : segment.down;
+  }
+  partial.destination = reverse ? selected[0].from : selected.at(-1).to;
+  return partial;
+}
+
+function renderRemainingRouteStats(selected) {
+  const panel = document.querySelector("#remainingRouteStats");
+  if (!panel) return;
+  const remaining = getRemainingRouteStats(selected, routePosition, state.direction === "reverse");
+  panel.hidden = !remaining;
+  if (!remaining) { panel.innerHTML = ""; return; }
+  panel.innerHTML = `<span class="remaining-destination">Remaining on route to ${escapeHtml(remaining.destination)}</span>
+    <strong>${remaining.distance.toFixed(1)} km</strong><strong>~${formatMinutes(Math.ceil(remaining.minutes))}</strong>
+    <strong>↑ ${Math.round(remaining.up)} / ↓ ${Math.round(remaining.down)} m</strong>`;
+}
+
+async function loadRouteDetails(trailId) {
+  const loadingStatus = document.querySelector("#mapDetailStatus");
+  if (loadingStatus) loadingStatus.textContent = "Loading detailed GPX…";
+  try {
+    if (!routeDetailCache.has(trailId)) {
+      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=68`).then(response => {
+        if (!response.ok) throw new Error("GPX detail unavailable");
+        return response.json();
+      }));
+      routeDetailCache.set(trailId, await routeDetailRequests.get(trailId));
+    }
+    if (trailId !== activeTrailId) return;
+    const detail = routeDetailCache.get(trailId);
+    segments.forEach(segment => { segment.detail = detail[segment.id]; });
+    geometrySource = "Adaptive GPX";
+    const status = document.querySelector("#mapDetailStatus");
+    if (status) status.textContent = "Detailed GPX loaded. Map detail adapts to zoom and viewport.";
+    syncBaseRouteLayer();
+    refreshUserLocation();
+  } catch {
+    routeDetailRequests.delete(trailId);
+    if (trailId !== activeTrailId) return;
+    const status = document.querySelector("#mapDetailStatus");
+    if (status) status.textContent = "Using bundled overview. Detailed GPX could not load; reopen online to retry.";
+  }
+}
+
+function getRenderedSegmentPoints(segment) {
+  if (!map || !window.RouteGeometry) return segment.points.length > 1 ? [segment.points] : [];
+  const bounds = map.getBounds().pad(0.2);
+  const view = [bounds.getSouth(), bounds.getWest(), bounds.getNorth(), bounds.getEast()];
+  const geometry = window.RouteGeometry;
+  if (segment.detail && !geometry.intersects(segment.detail.bounds, view)) return [];
+  const points = segment.detail?.levels[geometry.levelForZoom(map.getZoom())] || segment.points;
+  return geometry.clippedLines(points, view);
 }

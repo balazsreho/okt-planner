@@ -20,7 +20,7 @@
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       crossorigin=""
     />
-    <link rel="stylesheet" href="./styles.css?v=67" />
+    <link rel="stylesheet" href="./styles.css?v=68" />
   </head>
   <body>
     <main class="app-shell">
@@ -47,6 +47,7 @@
             </div>
           </div>
           <div class="elevation-chart-wrap">
+            <div id="remainingRouteStats" class="remaining-route-stats" hidden aria-live="polite"></div>
             <div class="route-topline">
               <div class="elevation-header">
                 <span id="profileTitle">Select segments for elevation</span>
@@ -147,6 +148,14 @@
                 <button type="button" data-direction="reverse" aria-pressed="false">E-W</button>
               </span>
             </div>
+          </div>
+          <div class="more-card">
+            <span class="eyebrow">Location &amp; compass</span>
+            <div class="setting-row"><span>Show my location</span><button id="locationSetting" type="button" class="setting-toggle" role="switch" aria-checked="true"><span aria-hidden="true"></span><span class="visually-hidden">Show my location</span></button></div>
+            <div class="setting-row"><span>Compass direction arrow</span><button id="compassSetting" type="button" class="setting-toggle" role="switch" aria-checked="true"><span aria-hidden="true"></span><span class="visually-hidden">Compass direction arrow</span></button></div>
+            <button id="compassPermissionButton" type="button" hidden>Allow compass access</button>
+            <small id="navigationSettingsStatus">Location and compass are on by default. Your browser may ask for access.</small>
+            <small id="mapDetailStatus">Loading detailed GPX…</small>
           </div>
           <div class="more-card">
             <span class="eyebrow">Travel Origin</span>
@@ -285,8 +294,9 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./vendor/qrcode.min.js?v=67"></script>
-    <script src="./trail-route-data.js?v=67"></script>
-    <script src="./app.js?v=67"></script>
+    <script src="./vendor/qrcode.min.js?v=68"></script>
+    <script src="./trail-route-data.js?v=68"></script>
+    <script src="./route-geometry.js?v=68"></script>
+    <script src="./app.js?v=68"></script>
   </body>
 </html>
