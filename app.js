@@ -241,6 +241,8 @@ let userHeadingMarker = null;
 let compassHeading = null;
 let compassListening = false;
 let compassAccessRemembered = loadCompassAccess();
+let compassPromptNeeded = false;
+let compassPromptShown = false;
 let navigationSettings = loadNavigationSettings();
 const routeDetailCache = new Map();
 const routeDetailRequests = new Map();
@@ -3137,6 +3139,7 @@ function refreshUserLocation() {
   const selected = segments.filter((segment) => state.selectedSegments.includes(segment.id));
   renderElevation(selected);
   renderRemainingRouteStats(selected);
+  maybeShowCompassPrompt();
 }
 
 function getCompassHeading(event) {
@@ -3160,6 +3163,8 @@ function handleCompassOrientation(event) {
   if (status) status.textContent = compassHeading !== null ? "Compass on" : "Waiting for compass…";
   if (compassHeading !== null) {
     rememberCompassAccess(true);
+    compassPromptNeeded = false;
+    closeCompassPrompt();
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = true;
   }
@@ -3173,6 +3178,7 @@ function prepareCompass() {
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = false;
     if (compassAccessRemembered) requestCompassAccess(true);
+    else { compassPromptNeeded = true; maybeShowCompassPrompt(); }
   }
 }
 
@@ -3207,8 +3213,11 @@ async function requestCompassAccess(automatic) {
     if (locationWatchId === null || !navigationSettings.location || !navigationSettings.compass) return;
     if (result !== "granted") {
       if (status) status.textContent = "Compass permission denied. GPS direction still works while moving.";
+      if (automatic) { compassPromptNeeded = true; maybeShowCompassPrompt(); }
       return;
     }
+    compassPromptNeeded = false;
+    closeCompassPrompt();
     startCompass();
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = true;
@@ -3219,6 +3228,7 @@ async function requestCompassAccess(automatic) {
     if (status) status.textContent = automatic
       ? "Your compass preference is saved, but iOS needs a tap. Choose Allow compass access here."
       : "Compass unavailable. GPS direction works while moving.";
+    if (automatic) { compassPromptNeeded = true; maybeShowCompassPrompt(); }
   }
 }
 
@@ -3232,6 +3242,8 @@ function startCompass() {
 }
 
 function stopCompass() {
+  compassPromptNeeded = false;
+  closeCompassPrompt();
   window.removeEventListener("deviceorientation", handleCompassOrientation);
   window.removeEventListener("deviceorientationabsolute", handleCompassOrientation);
   compassListening = false;
@@ -3272,8 +3284,8 @@ function refreshHeadingMarker() {
 function loadNavigationSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(navigationSettingsStorageKey));
-    return { location: saved?.location !== false, compass: saved?.compass !== false };
-  } catch { return { location: true, compass: true }; }
+    return { location: saved?.location !== false, compass: saved?.compass !== false, compassPrompt: saved?.compassPrompt !== false };
+  } catch { return { location: true, compass: true, compassPrompt: true }; }
 }
 
 function saveNavigationSettings() {
@@ -3284,6 +3296,7 @@ function saveNavigationSettings() {
 function syncNavigationSettings() {
   document.querySelector("#locationSetting")?.setAttribute("aria-checked", String(navigationSettings.location));
   document.querySelector("#compassSetting")?.setAttribute("aria-checked", String(navigationSettings.compass));
+  document.querySelector("#compassPromptSetting")?.setAttribute("aria-checked", String(navigationSettings.compassPrompt));
   const status = document.querySelector("#navigationSettingsStatus");
   if (status) status.textContent = navigationSettings.location
     ? `Location on · compass ${navigationSettings.compass ? "on" : "off"}. Browser access may still be required.`
@@ -3299,6 +3312,13 @@ function setLocationEnabled(enabled) {
 
 function initNavigationSettings() {
   syncNavigationSettings();
+  initCompassPrompt();
+  document.querySelector("#compassPromptSetting")?.addEventListener("click", () => {
+    navigationSettings.compassPrompt = !navigationSettings.compassPrompt;
+    saveNavigationSettings();
+    if (navigationSettings.compassPrompt) { compassPromptShown = false; maybeShowCompassPrompt(); }
+    else closeCompassPrompt();
+  });
   document.querySelector("#locationSetting").addEventListener("click", () => setLocationEnabled(!navigationSettings.location));
   document.querySelector("#compassSetting").addEventListener("click", () => {
     navigationSettings.compass = !navigationSettings.compass;
@@ -3370,7 +3390,7 @@ async function loadRouteDetails(trailId) {
   if (loadingStatus) loadingStatus.textContent = "Loading detailed GPX…";
   try {
     if (!routeDetailCache.has(trailId)) {
-      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=70`).then(response => {
+      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=71`).then(response => {
         if (!response.ok) throw new Error("GPX detail unavailable");
         return response.json();
       }));
@@ -3400,4 +3420,36 @@ function getRenderedSegmentPoints(segment) {
   if (segment.detail && !geometry.intersects(segment.detail.bounds, view)) return [];
   const points = segment.detail?.levels[geometry.levelForZoom(map.getZoom())] || segment.points;
   return geometry.clippedLines(points, view);
+}
+
+function maybeShowCompassPrompt() {
+  if (!compassPromptNeeded || compassPromptShown || !navigationSettings.compassPrompt ||
+      !navigationSettings.location || !navigationSettings.compass || !currentPosition ||
+      locationWatchId === null || compassHeading !== null) return;
+  const dialog = document.querySelector("#compassAccessDialog");
+  if (!dialog?.showModal || document.querySelector("dialog[open]")) return;
+  const optOut = document.querySelector("#dontAskCompass");
+  if (optOut) optOut.checked = false;
+  dialog.showModal();
+  compassPromptShown = true;
+}
+
+function closeCompassPrompt() {
+  const dialog = document.querySelector("#compassAccessDialog");
+  if (dialog?.open) dialog.close();
+}
+
+function initCompassPrompt() {
+  const savePromptChoice = () => {
+    if (document.querySelector("#dontAskCompass")?.checked) {
+      navigationSettings.compassPrompt = false;
+      saveNavigationSettings();
+    }
+    closeCompassPrompt();
+  };
+  document.querySelector("#approveCompassPrompt")?.addEventListener("click", () => {
+    savePromptChoice();
+    enableCompass(); // Keep the native permission request in this tap's gesture.
+  });
+  document.querySelector("#skipCompassPrompt")?.addEventListener("click", savePromptChoice);
 }
