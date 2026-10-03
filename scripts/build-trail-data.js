@@ -33,6 +33,25 @@ generatedTrails.forEach((trail) => {
   trailData[trail.id] = buildGpxTrail(trail);
 });
 
+// Keep all official stamp alternatives, including their precise placement text.
+for (const [id, source] of Object.entries({
+  okt: "okt_teljes_bh_20260910.gpx",
+  ak: "ak_teljes_bh_20260903.gpx",
+  rpddk: "rpddk_teljes_bh_20260806.gpx",
+})) {
+  const gpx = fs.readFileSync(path.join(root, source), "utf8");
+  const byName = new Map();
+  for (const match of gpx.matchAll(/<wpt lat="([^"]+)" lon="([^"]+)">([\s\S]*?)<\/wpt>/g)) {
+    const decode = (value) => value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+    const name = normalizeText(decode(textContent(match[3], "name")));
+    const description = decode(textContent(match[3], "desc")).replace(/\s*\((?:OKTPH|AKPH|DDKPH)_[^)]+\)\s*$/, "").trim();
+    const locations = byName.get(name) || [];
+    if (description) locations.push({ description, lat: Number(match[1]), lng: Number(match[2]) });
+    byName.set(name, locations);
+  }
+  for (const stamp of trailData[id].stamps) stamp.locations = byName.get(normalizeText(stamp.name)) || [];
+}
+
 fs.writeFileSync(
   path.join(root, "trail-route-data.js"),
   `window.TRAIL_ROUTE_DATA = ${JSON.stringify(trailData)};\n`,
