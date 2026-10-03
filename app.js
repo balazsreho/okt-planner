@@ -276,7 +276,6 @@ function init() {
   }).addTo(map);
   stampLayerGroup = L.layerGroup().addTo(map);
   initOneFingerMapZoom();
-  initLocationControl();
   map.on("zoomend moveend", syncStampLabels);
   map.on("zoomend moveend", syncBaseRouteLayer);
 
@@ -3077,34 +3076,11 @@ function renderUserProfileLine(profileSegments, isReverse, xScale, pad, plotHeig
     </g>`;
 }
 
-function initLocationControl() {
-  const control = L.control({ position: "topleft" });
-  control.onAdd = () => {
-    const container = L.DomUtil.create("div", "location-control");
-    container.innerHTML = '<button id="locationButton" type="button" aria-pressed="false">◎ My location</button><button id="compassButton" type="button" hidden>Enable compass</button><span id="compassStatus" role="status" aria-live="polite"></span><span id="locationStatus" role="status" aria-live="polite"></span>';
-    L.DomEvent.disableClickPropagation(container);
-    L.DomEvent.disableScrollPropagation(container);
-    container.querySelector("#locationButton").addEventListener("click", toggleLocationTracking);
-    container.querySelector("#compassButton").addEventListener("click", enableCompass);
-    return container;
-  };
-  control.addTo(map);
-}
-
-function toggleLocationTracking() {
-  setLocationEnabled(locationWatchId === null);
-}
-
 function stopLocationTracking() {
   if (locationWatchId !== null) navigator.geolocation.clearWatch(locationWatchId);
   locationWatchId = null;
   stopCompass();
   currentPosition = null;
-  const button = document.querySelector("#locationButton");
-  if (button) {
-    button.setAttribute("aria-pressed", "false");
-    button.textContent = "◎ My location";
-  }
   const status = document.querySelector("#locationStatus");
   if (status) status.textContent = "";
   refreshUserLocation();
@@ -3112,15 +3088,12 @@ function stopLocationTracking() {
 
 function startLocationTracking() {
   if (locationWatchId !== null) return;
-  const button = document.querySelector("#locationButton");
   const status = document.querySelector("#locationStatus");
   if (!navigator.geolocation || !window.isSecureContext) {
     status.textContent = "Location requires HTTPS and a browser with GPS support.";
     return;
   }
   status.textContent = "Finding your location…";
-  button.setAttribute("aria-pressed", "true");
-  button.textContent = "◎ Stop location";
   if (navigationSettings.compass) prepareCompass();
   locationWatchId = navigator.geolocation.watchPosition((position) => {
     if (locationWatchId === null || !navigationSettings.location) return;
@@ -3134,8 +3107,6 @@ function startLocationTracking() {
       navigator.geolocation.clearWatch(locationWatchId);
       locationWatchId = null;
       stopCompass();
-      button.setAttribute("aria-pressed", "false");
-      button.textContent = "◎ My location";
     }
   }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
 }
@@ -3186,8 +3157,6 @@ function handleCompassOrientation(event) {
   const status = document.querySelector("#compassStatus");
   if (status) status.textContent = compassHeading !== null ? "Compass on" : "Waiting for compass…";
   if (compassHeading !== null) {
-    const button = document.querySelector("#compassButton");
-    if (button) button.hidden = true;
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = true;
   }
@@ -3195,15 +3164,11 @@ function handleCompassOrientation(event) {
 }
 
 function prepareCompass() {
-  const button = document.querySelector("#compassButton");
   if (!window.DeviceOrientationEvent || !navigationSettings.compass) return;
   startCompass();
   if (typeof window.DeviceOrientationEvent.requestPermission === "function") {
-    if (button) button.hidden = false;
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = false;
-  } else {
-    startCompass();
   }
 }
 
@@ -3225,8 +3190,6 @@ async function enableCompass() {
       return;
     }
     startCompass();
-    const button = document.querySelector("#compassButton");
-    if (button) button.hidden = true;
     const permissionButton = document.querySelector("#compassPermissionButton");
     if (permissionButton) permissionButton.hidden = true;
   } catch {
@@ -3248,9 +3211,7 @@ function stopCompass() {
   window.removeEventListener("deviceorientationabsolute", handleCompassOrientation);
   compassListening = false;
   compassHeading = null;
-  const button = document.querySelector("#compassButton");
   const status = document.querySelector("#compassStatus");
-  if (button) button.hidden = true;
   if (status) status.textContent = "";
   const permissionButton = document.querySelector("#compassPermissionButton");
   if (permissionButton) permissionButton.hidden = true;
@@ -3384,7 +3345,7 @@ async function loadRouteDetails(trailId) {
   if (loadingStatus) loadingStatus.textContent = "Loading detailed GPX…";
   try {
     if (!routeDetailCache.has(trailId)) {
-      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=68`).then(response => {
+      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=69`).then(response => {
         if (!response.ok) throw new Error("GPX detail unavailable");
         return response.json();
       }));

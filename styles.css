@@ -2359,28 +2359,11 @@ h2 {
   }
 }
 
-.location-control { max-width: min(220px, 48vw); }
-.location-control button { background: #fff; color: #25394c; border: 1px solid #d9e1e8; border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 13px; font-weight: 700; box-shadow: 0 2px 12px #0002; cursor: pointer; }
-.location-control button[aria-pressed="true"] { color: #b52b40; }
-.location-control [role="status"]:not(:empty) { display: block; margin-top: 5px; padding: 6px 8px; border-radius: 8px; background: #fff; color: #25394c; font-size: 11px; }
 .stamp-locations { border-top: 1px solid #d9e1e8; padding-top: 8px; font-size: 12px; line-height: 1.45; max-height: 180px; overflow-y: auto; }
 .stamp-locations p { margin: 6px 0 10px; }
 .stamp-locations a { display: block; color: var(--trail-color, #1261b3); }
 .stamp-locations small { color: var(--muted); }
 
-/* Keep GPS controls below the iPhone status bar in standalone mode. */
-@media (max-width: 860px) {
-  .leaflet-top.leaflet-left {
-    top: max(12px, env(safe-area-inset-top));
-    left: max(12px, env(safe-area-inset-left));
-  }
-  .leaflet-top.leaflet-left .location-control {
-    margin: 0;
-  }
-}
-
-.location-control #compassButton { display: block; margin-top: 5px; font-size: 12px; padding: 7px 10px; }
-.location-control #compassButton[hidden] { display: none; }
 .user-heading-icon { background: transparent; border: 0; pointer-events: none; }
 .user-heading-rotor { width: 60px; height: 60px; transform-origin: 30px 30px; }
 .user-heading-rotor svg { display: block; }
@@ -2394,3 +2377,5 @@ h2 {
 .popup-hikes[open] { max-height: 280px; overflow-y: auto; }
 #navigationSettingsStatus, #mapDetailStatus { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
 #compassPermissionButton { margin-top: 8px; }
+
+#locationStatus:not(:empty), #compassStatus:not(:empty) { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
