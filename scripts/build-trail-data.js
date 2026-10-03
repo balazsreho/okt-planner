@@ -2,6 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
+const geometry = require("../route-geometry.js");
+
 const root = path.resolve(__dirname, "..");
 
 const generatedTrails = [
@@ -40,6 +42,27 @@ for (const [id, source] of Object.entries({
   rpddk: "rpddk_teljes_bh_20260806.gpx",
 })) {
   const gpx = fs.readFileSync(path.join(root, source), "utf8");
+  const track = parseTrack(gpx);
+  const pointIndex = new Map();
+  track.forEach((point, index) => {
+    const key = `${round(point.lat, 6)},${round(point.lng, 6)}`;
+    if (!pointIndex.has(key)) pointIndex.set(key, index);
+  });
+  const detail = {};
+  for (const segment of trailData[id].segments) {
+    if (!segment.points.length) continue;
+    const indexFor = (p) => pointIndex.get(`${p[0]},${p[1]}`) ?? nearestTrackIndex({ lat: p[0], lng: p[1] }, track);
+    const start = indexFor(segment.points[0]), end = indexFor(segment.points.at(-1));
+    let full = track.slice(Math.min(start, end), Math.max(start, end) + 1);
+    if (start > end) full.reverse();
+    const points = full.map(p => [round(p.lat, 6), round(p.lng, 6)]);
+    detail[segment.id] = {
+      bounds: geometry.bounds(points),
+      levels: [80, 25, 8, 2, 0].map(tolerance => geometry.simplify(points, tolerance)),
+    };
+  }
+  fs.writeFileSync(path.join(root, `route-details-${id}.json`), JSON.stringify(detail));
+  console.log(`${id}: GPX detail levels ${[0,1,2,3,4].map(level => Object.values(detail).reduce((sum, s) => sum + s.levels[level].length, 0)).join(" / ")} points`);
   const byName = new Map();
   for (const match of gpx.matchAll(/<wpt lat="([^"]+)" lon="([^"]+)">([\s\S]*?)<\/wpt>/g)) {
     const decode = (value) => value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
