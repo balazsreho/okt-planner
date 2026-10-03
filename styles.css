@@ -2367,3 +2367,14 @@ h2 {
 .stamp-locations p { margin: 6px 0 10px; }
 .stamp-locations a { display: block; color: var(--trail-color, #1261b3); }
 .stamp-locations small { color: var(--muted); }
+
+/* Keep GPS controls below the iPhone status bar in standalone mode. */
+@media (max-width: 860px) {
+  .leaflet-top.leaflet-left {
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+  }
+  .leaflet-top.leaflet-left .location-control {
+    margin: 0;
+  }
+}
