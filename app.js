@@ -235,6 +235,9 @@ let currentPosition = null;
 let routePosition = null;
 let userLocationMarker = null;
 let userAccuracyCircle = null;
+let userHeadingMarker = null;
+let compassHeading = null;
+let compassListening = false;
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -3052,10 +3055,11 @@ function initLocationControl() {
   const control = L.control({ position: "topleft" });
   control.onAdd = () => {
     const container = L.DomUtil.create("div", "location-control");
-    container.innerHTML = '<button id="locationButton" type="button" aria-pressed="false">◎ My location</button><span id="locationStatus" role="status" aria-live="polite"></span>';
+    container.innerHTML = '<button id="locationButton" type="button" aria-pressed="false">◎ My location</button><button id="compassButton" type="button" hidden>Enable compass</button><span id="compassStatus" role="status" aria-live="polite"></span><span id="locationStatus" role="status" aria-live="polite"></span>';
     L.DomEvent.disableClickPropagation(container);
     L.DomEvent.disableScrollPropagation(container);
-    container.querySelector("button").addEventListener("click", toggleLocationTracking);
+    container.querySelector("#locationButton").addEventListener("click", toggleLocationTracking);
+    container.querySelector("#compassButton").addEventListener("click", enableCompass);
     return container;
   };
   control.addTo(map);
@@ -3067,6 +3071,7 @@ function toggleLocationTracking() {
   if (locationWatchId !== null) {
     navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = null;
+    stopCompass();
     currentPosition = null;
     button.setAttribute("aria-pressed", "false");
     button.textContent = "◎ My location";
@@ -3081,8 +3086,9 @@ function toggleLocationTracking() {
   status.textContent = "Finding your location…";
   button.setAttribute("aria-pressed", "true");
   button.textContent = "◎ Stop location";
+  prepareCompass();
   locationWatchId = navigator.geolocation.watchPosition((position) => {
-    currentPosition = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
+    currentPosition = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy, heading: position.coords.heading, speed: position.coords.speed };
     refreshUserLocation();
   }, (error) => {
     currentPosition = null;
@@ -3091,6 +3097,7 @@ function toggleLocationTracking() {
     if (error.code === 1) {
       navigator.geolocation.clearWatch(locationWatchId);
       locationWatchId = null;
+      stopCompass();
       button.setAttribute("aria-pressed", "false");
       button.textContent = "◎ My location";
     }
@@ -3117,5 +3124,103 @@ function refreshUserLocation() {
   if (status && currentPosition) status.textContent = nearby
     ? `Near route · GPS ±${Math.round(currentPosition.accuracy)} m`
     : "More than 2 km from this trail";
+  refreshHeadingMarker();
   renderElevation(segments.filter((segment) => state.selectedSegments.includes(segment.id)));
+}
+
+function getCompassHeading(event) {
+  // Safari provides a north-referenced compass bearing, unlike relative alpha.
+  if (Number.isFinite(event.webkitCompassHeading) &&
+      (!Number.isFinite(event.webkitCompassAccuracy) || (event.webkitCompassAccuracy >= 0 && event.webkitCompassAccuracy <= 50))) {
+    return (event.webkitCompassHeading + 360) % 360;
+  }
+  if ((event.absolute === true || event.type === "deviceorientationabsolute") && Number.isFinite(event.alpha)) {
+    const screenAngle = window.screen?.orientation?.angle ?? window.orientation ?? 0;
+    return (360 - event.alpha + screenAngle + 360) % 360;
+  }
+  return null;
+}
+
+function handleCompassOrientation(event) {
+  if (!Number.isFinite(event.webkitCompassHeading) && event.absolute !== true && event.type !== "deviceorientationabsolute") return;
+  compassHeading = getCompassHeading(event);
+  const status = document.querySelector("#compassStatus");
+  if (status) status.textContent = compassHeading !== null ? "Compass on" : "Waiting for compass…";
+  refreshHeadingMarker();
+}
+
+function prepareCompass() {
+  const button = document.querySelector("#compassButton");
+  if (!window.DeviceOrientationEvent) return;
+  if (typeof window.DeviceOrientationEvent.requestPermission === "function") {
+    if (button) button.hidden = false;
+  } else {
+    startCompass();
+  }
+}
+
+async function enableCompass() {
+  const status = document.querySelector("#compassStatus");
+  try {
+    // Must be called directly by a tap for iOS's sensor permission prompt.
+    const result = typeof window.DeviceOrientationEvent?.requestPermission === "function"
+      ? await window.DeviceOrientationEvent.requestPermission() : "granted";
+    if (locationWatchId === null) return;
+    if (result !== "granted") {
+      if (status) status.textContent = "Compass permission denied. GPS direction still works while moving.";
+      return;
+    }
+    startCompass();
+    const button = document.querySelector("#compassButton");
+    if (button) button.hidden = true;
+  } catch {
+    if (status) status.textContent = "Compass unavailable. GPS direction works while moving.";
+  }
+}
+
+function startCompass() {
+  if (compassListening) return;
+  compassListening = true;
+  window.addEventListener("deviceorientation", handleCompassOrientation);
+  window.addEventListener("deviceorientationabsolute", handleCompassOrientation);
+  const status = document.querySelector("#compassStatus");
+  if (status) status.textContent = "Waiting for compass…";
+}
+
+function stopCompass() {
+  window.removeEventListener("deviceorientation", handleCompassOrientation);
+  window.removeEventListener("deviceorientationabsolute", handleCompassOrientation);
+  compassListening = false;
+  compassHeading = null;
+  const button = document.querySelector("#compassButton");
+  const status = document.querySelector("#compassStatus");
+  if (button) button.hidden = true;
+  if (status) status.textContent = "";
+}
+
+function refreshHeadingMarker() {
+  const gpsHeading = currentPosition && Number.isFinite(currentPosition.heading) && currentPosition.speed >= 0.5
+    ? currentPosition.heading : null;
+  const heading = compassHeading ?? gpsHeading;
+  if (!userLocationMarker || !currentPosition || heading === null) {
+    userHeadingMarker?.remove();
+    userHeadingMarker = null;
+    return;
+  }
+  const latlng = [currentPosition.lat, currentPosition.lng];
+  if (!userHeadingMarker) {
+    userHeadingMarker = L.marker(latlng, {
+      interactive: false,
+      keyboard: false,
+      icon: L.divIcon({
+        className: "user-heading-icon",
+        iconSize: [60, 60],
+        iconAnchor: [30, 30],
+        html: '<div class="user-heading-rotor"><svg width="60" height="60" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 3 L22 18 L30 14 L38 18 Z" fill="#d33d53" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg></div>',
+      }),
+    }).addTo(map);
+  }
+  userHeadingMarker.setLatLng(latlng);
+  const rotor = userHeadingMarker.getElement()?.querySelector(".user-heading-rotor");
+  if (rotor) rotor.style.transform = `rotate(${heading}deg)`;
 }
