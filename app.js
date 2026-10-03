@@ -230,6 +230,11 @@ const addressSuggestionCache = new Map();
 let analyticsConsent = loadAnalyticsConsent();
 let analyticsLoaded = false;
 let lastTrackedView = null;
+let locationWatchId = null;
+let currentPosition = null;
+let routePosition = null;
+let userLocationMarker = null;
+let userAccuracyCircle = null;
 
 document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", registerServiceWorker);
@@ -264,6 +269,7 @@ function init() {
   }).addTo(map);
   stampLayerGroup = L.layerGroup().addTo(map);
   initOneFingerMapZoom();
+  initLocationControl();
   map.on("zoomend moveend", syncStampLabels);
 
   loadTrail(activeTrailId);
@@ -511,6 +517,7 @@ function switchTrail(trailId) {
   syncTrailButtons();
   updateUi();
   refreshMapLayout(true);
+  refreshUserLocation();
 }
 
 function syncTrailButtons() {
@@ -1554,6 +1561,7 @@ function getStampPopupContent(stamp, stampIndex) {
     <div class="stamp-popup" data-stamp-index="${stampIndex}">
       <strong>${title}</strong>
       <span>${altitude}</span>
+      ${renderStampLocations(stamp)}
       <div class="popup-direction-switch">
         <input class="popup-direction-input popup-dir-forward" id="${forwardId}" type="radio" name="popup-direction-${activeTrailId}-${stampIndex}" ${isReverse ? "" : "checked"} />
         <input class="popup-direction-input popup-dir-reverse" id="${reverseId}" type="radio" name="popup-direction-${activeTrailId}-${stampIndex}" ${isReverse ? "checked" : ""} />
@@ -1566,6 +1574,17 @@ function getStampPopupContent(stamp, stampIndex) {
       </div>
     </div>
   `;
+}
+
+function renderStampLocations(stamp) {
+  const locations = stamp.locations || [];
+  return `<section class="stamp-locations" aria-label="Stamp location">
+    <strong>Where to find the stamp</strong>
+    ${locations.length ? locations.map((location) => `<p>${escapeHtml(location.description)}
+      <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${location.lat},${location.lng}`)}" target="_blank" rel="noopener noreferrer">Show exact location ↗</a></p>`).join("")
+    : '<p>No placement description in the bundled official GPX.</p>'}
+    <small>Official GPX · ${escapeHtml(getActiveDataVersion())}</small>
+  </section>`;
 }
 
 function renderPopupSuggestionPane(stampIndex, direction) {
@@ -2667,6 +2686,7 @@ function renderElevation(profileSegments) {
     <path d="${fillD}" fill="rgba(${getTrailRgb()}, 0.14)"></path>
     <path d="${d}" fill="none" stroke="${getTrailColor()}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path>
     ${stampsMarkup}
+    ${renderUserProfileLine(profileSegments, isReverse, xScale, pad, plotHeight)}
   `;
 
   const firstSegment = profileSegments[0];
@@ -2984,4 +3004,118 @@ function slugify(value) {
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
+}
+
+// Project onto route edges in metres, then scale progress to the profile's km.
+function nearestRoutePosition(position, routeSegments) {
+  const metresPerDegree = Math.PI * 6371000 / 180;
+  const longitudeScale = metresPerDegree * Math.cos(position.lat * Math.PI / 180);
+  let nearest = null;
+  for (const segment of routeSegments) {
+    let traversed = 0;
+    const edges = [];
+    for (let i = 1; i < segment.points.length; i += 1) {
+      const a = segment.points[i - 1], b = segment.points[i];
+      const ax = (a[1] - position.lng) * longitudeScale;
+      const ay = (a[0] - position.lat) * metresPerDegree;
+      const dx = (b[1] - a[1]) * longitudeScale;
+      const dy = (b[0] - a[0]) * metresPerDegree;
+      const length = Math.hypot(dx, dy);
+      const t = length ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (length * length))) : 0;
+      edges.push({ distance: Math.hypot(ax + t * dx, ay + t * dy), along: traversed + t * length });
+      traversed += length;
+    }
+    for (const edge of edges) {
+      if (!nearest || edge.distance < nearest.distance) {
+        nearest = { segmentId: segment.id, distance: edge.distance, fraction: traversed ? edge.along / traversed : 0 };
+      }
+    }
+  }
+  return nearest;
+}
+
+function renderUserProfileLine(profileSegments, isReverse, xScale, pad, plotHeight) {
+  if (!routePosition || routePosition.distance > 2000) return "";
+  const index = profileSegments.findIndex((segment) => segment.id === routePosition.segmentId);
+  if (index < 0) return "";
+  let distance = profileSegments.slice(0, index).reduce((sum, segment) => sum + segment.distance, 0)
+    + profileSegments[index].distance * routePosition.fraction;
+  if (isReverse) distance = profileSegments.reduce((sum, segment) => sum + segment.distance, 0) - distance;
+  const x = xScale(distance).toFixed(1);
+  return `<g class="user-profile-position"><title>Your nearest route position · ${distance.toFixed(1)} km</title>
+    <line x1="${x}" x2="${x}" y1="${pad.top}" y2="${pad.top + plotHeight}" stroke="#d33d53" stroke-width="3" stroke-dasharray="5 3" />
+    <circle cx="${x}" cy="${pad.top}" r="5" fill="#d33d53" />
+    </g>`;
+}
+
+function initLocationControl() {
+  const control = L.control({ position: "topleft" });
+  control.onAdd = () => {
+    const container = L.DomUtil.create("div", "location-control");
+    container.innerHTML = '<button id="locationButton" type="button" aria-pressed="false">◎ My location</button><span id="locationStatus" role="status" aria-live="polite"></span>';
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+    container.querySelector("button").addEventListener("click", toggleLocationTracking);
+    return container;
+  };
+  control.addTo(map);
+}
+
+function toggleLocationTracking() {
+  const button = document.querySelector("#locationButton");
+  const status = document.querySelector("#locationStatus");
+  if (locationWatchId !== null) {
+    navigator.geolocation.clearWatch(locationWatchId);
+    locationWatchId = null;
+    currentPosition = null;
+    button.setAttribute("aria-pressed", "false");
+    button.textContent = "◎ My location";
+    status.textContent = "";
+    refreshUserLocation();
+    return;
+  }
+  if (!navigator.geolocation || !window.isSecureContext) {
+    status.textContent = "Location requires HTTPS and a browser with GPS support.";
+    return;
+  }
+  status.textContent = "Finding your location…";
+  button.setAttribute("aria-pressed", "true");
+  button.textContent = "◎ Stop location";
+  locationWatchId = navigator.geolocation.watchPosition((position) => {
+    currentPosition = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
+    refreshUserLocation();
+  }, (error) => {
+    currentPosition = null;
+    refreshUserLocation();
+    status.textContent = error.code === 1 ? "Location permission denied. Allow location in your browser settings." : "Location unavailable. Waiting for a GPS fix…";
+    if (error.code === 1) {
+      navigator.geolocation.clearWatch(locationWatchId);
+      locationWatchId = null;
+      button.setAttribute("aria-pressed", "false");
+      button.textContent = "◎ My location";
+    }
+  }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+}
+
+function refreshUserLocation() {
+  routePosition = currentPosition ? nearestRoutePosition(currentPosition, segments) : null;
+  const nearby = routePosition && routePosition.distance <= 2000;
+  if (nearby) {
+    const latlng = [currentPosition.lat, currentPosition.lng];
+    if (!userLocationMarker) {
+      userAccuracyCircle = L.circle(latlng, { color: "#d33d53", weight: 1, fillOpacity: 0.08, interactive: false }).addTo(map);
+      userLocationMarker = L.circleMarker(latlng, { radius: 8, color: "#fff", weight: 3, fillColor: "#d33d53", fillOpacity: 1 }).addTo(map).bindTooltip("You are here");
+    }
+    userLocationMarker.setLatLng(latlng).bringToFront();
+    userAccuracyCircle.setLatLng(latlng).setRadius(currentPosition.accuracy);
+  } else {
+    userLocationMarker?.remove();
+    userAccuracyCircle?.remove();
+    userLocationMarker = userAccuracyCircle = null;
+  }
+  const status = document.querySelector("#locationStatus");
+  if (status && currentPosition) status.textContent = nearby
+    ? `Near route · GPS ±${Math.round(currentPosition.accuracy)} m`
+    : "More than 2 km from this trail";
+  renderElevation(segments.filter((segment) => state.selectedSegments.includes(segment.id)));
 }
