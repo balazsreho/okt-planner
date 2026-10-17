@@ -278,6 +278,26 @@ button {
   border-radius: 0 0 4px 4px;
 }
 
+.leaflet-control-rotate {
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass-strong);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(26px) saturate(1.85);
+  -webkit-backdrop-filter: blur(26px) saturate(1.85);
+}
+
+.leaflet-control-rotate a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.leaflet-control-rotate a:focus-visible {
+  outline: 2px solid var(--trail-color);
+  outline-offset: -3px;
+}
+
 .leaflet-control-attribution {
   padding: 0 6px;
   border-radius: 8px;
@@ -558,6 +578,40 @@ h2 {
   display: block;
   width: 100%;
   height: 180px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#elevationChart.is-scrubbing {
+  cursor: crosshair;
+}
+
+.elevation-scrub-indicator[hidden] {
+  display: none;
+}
+
+.elevation-scrub-indicator line {
+  stroke: #d12f83;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 5 4;
+}
+
+.elevation-scrub-indicator circle {
+  fill: #d12f83;
+  stroke: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 3px rgba(44, 24, 39, 0.3));
+}
+
+.leaflet-tooltip.elevation-position-tooltip {
+  padding: 5px 8px;
+  border-color: rgba(209, 47, 131, 0.38);
+  background: rgba(255, 248, 252, 0.9);
+  color: #8f1455;
+  font-size: 11px;
+  font-weight: 850;
 }
 
 .travel-panel {
@@ -2244,6 +2298,15 @@ h2 {
     box-shadow: var(--shadow-soft);
   }
 
+  .leaflet-control-rotate {
+    border-radius: 14px;
+  }
+
+  .leaflet-control-rotate a {
+    width: 42px;
+    height: 42px;
+  }
+
   .leaflet-touch .leaflet-control-zoom a {
     width: 42px;
     height: 42px;
@@ -2335,6 +2398,7 @@ h2 {
   .elevation-dock,
   .leaflet-popup-content-wrapper,
   .leaflet-tooltip,
+  .leaflet-control-rotate,
   .leaflet-control-zoom a,
   .leaflet-control-attribution {
     background: rgba(255, 255, 255, 0.94);
@@ -2352,6 +2416,7 @@ h2 {
   .elevation-dock,
   .leaflet-popup-content-wrapper,
   .leaflet-tooltip,
+  .leaflet-control-rotate,
   .leaflet-control-zoom a,
   .leaflet-control-attribution {
     backdrop-filter: none;

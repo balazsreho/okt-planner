@@ -244,6 +244,9 @@ let compassAccessRemembered = loadCompassAccess();
 let compassPromptNeeded = false;
 let compassPromptShown = false;
 let navigationSettings = loadNavigationSettings();
+let elevationScrubModel = null;
+let elevationScrubMarker = null;
+const elevationScrubPathCache = new WeakMap();
 const routeDetailCache = new Map();
 const routeDetailRequests = new Map();
 
@@ -258,6 +261,7 @@ function init() {
     return;
   }
 
+  const supportsMapRotation = typeof L.Map.prototype.setBearing === "function";
   trailRenderer = L.svg({ padding: 0.35 });
   map = L.map("map", {
     zoomControl: false,
@@ -267,7 +271,19 @@ function init() {
     fadeAnimation: false,
     markerZoomAnimation: false,
     zoomSnap: 0.25,
+    rotate: supportsMapRotation,
+    touchRotate: supportsMapRotation,
+    dragRotate: false,
+    shiftKeyRotate: false,
+    rotateControl: supportsMapRotation
+      ? { position: "topright", behavior: "reset", closeOnZeroBearing: false }
+      : false,
+    preventPageGestures: supportsMapRotation,
   }).setView([47.16, 19.5], 7);
+
+  const rotateButton = map.getContainer().querySelector(".leaflet-control-rotate a");
+  rotateButton?.setAttribute("aria-label", "Reset map to north");
+  if (rotateButton) rotateButton.title = "Reset map to north";
 
   L.control.zoom({ position: "topright" }).addTo(map);
   L.control.attribution({ position: "topright", prefix: false }).addTo(map);
@@ -289,6 +305,7 @@ function init() {
   renderMap();
   renderLists();
   bindControls();
+  initElevationScrubbing();
   initAnalytics();
   setInitialView();
   initTravelControls();
@@ -2668,6 +2685,8 @@ function renderElevation(profileSegments) {
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
   if (!profileSegments.length) {
+    elevationScrubModel = null;
+    clearElevationScrubPreview();
     dock?.classList.add("empty");
     mapPane?.classList.add("elevation-empty");
     svg.innerHTML = `
@@ -2712,7 +2731,12 @@ function renderElevation(profileSegments) {
     <path d="${d}" fill="none" stroke="${getTrailColor()}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path>
     ${stampsMarkup}
     ${renderUserProfileLine(profileSegments, isReverse, xScale, pad, plotHeight)}
+    <g class="elevation-scrub-indicator" hidden aria-hidden="true">
+      <line y1="${pad.top}" y2="${pad.top + plotHeight}"></line>
+      <circle r="6"></circle>
+    </g>
   `;
+  elevationScrubModel = { profile, xScale, yScale, pad, plotWidth, plotHeight, maxDistance };
 
   const firstSegment = profileSegments[0];
   const lastSegment = profileSegments[profileSegments.length - 1];
@@ -2749,20 +2773,170 @@ function buildProfile(profileSegments, isReverse = false) {
     const samples = segment.elevationSamples.length
       ? segment.elevationSamples
       : generateElevationSamples(segment, getStampById(getSegmentFromId(segment)).altitude, getStampById(getSegmentToId(segment)).altitude);
+    const samplesWithPosition = samples.map((sample) => ({
+      ...sample,
+      segmentFraction: Math.max(0, Math.min(1, sample.distance / Math.max(segment.distance, 0.001))),
+    }));
     const orderedSamples = isReverse
-      ? samples.map((sample) => ({ ...sample, distance: segment.distance - sample.distance })).reverse()
-      : samples;
+      ? samplesWithPosition.map((sample) => ({ ...sample, distance: segment.distance - sample.distance })).reverse()
+      : samplesWithPosition;
     orderedSamples.forEach((sample, sampleIndex) => {
       if (segmentIndex > 0 && sampleIndex === 0) return;
       profile.push({
         distance: distance + sample.distance,
         altitude: sample.altitude,
+        segmentId: segment.id,
+        segmentFraction: sample.segmentFraction,
         stamp: sampleIndex === 0 ? (isReverse ? segment.to : segment.from) : sampleIndex === orderedSamples.length - 1 ? (isReverse ? segment.from : segment.to) : null,
       });
     });
     distance += segment.distance;
   });
   return profile;
+}
+
+function initElevationScrubbing() {
+  const svg = document.querySelector("#elevationChart");
+  let activePointerId = null;
+
+  const update = (event) => {
+    if (activePointerId !== event.pointerId || !elevationScrubModel) return;
+    event.preventDefault();
+    event.stopPropagation();
+    updateElevationScrubPreview(event.clientX, event.clientY);
+  };
+
+  const finish = (event) => {
+    if (activePointerId !== event.pointerId) return;
+    if (svg.hasPointerCapture?.(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+    activePointerId = null;
+    clearElevationScrubPreview();
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  svg.addEventListener("pointerdown", (event) => {
+    if (!elevationScrubModel || event.button !== 0 || !event.isPrimary) return;
+    activePointerId = event.pointerId;
+    svg.setPointerCapture?.(event.pointerId);
+    svg.classList.add("is-scrubbing");
+    updateElevationScrubPreview(event.clientX, event.clientY);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  svg.addEventListener("pointermove", update);
+  svg.addEventListener("pointerup", finish);
+  svg.addEventListener("pointercancel", finish);
+  svg.addEventListener("lostpointercapture", () => {
+    activePointerId = null;
+    clearElevationScrubPreview();
+  });
+}
+
+function updateElevationScrubPreview(clientX, clientY) {
+  const svg = document.querySelector("#elevationChart");
+  const matrix = svg.getScreenCTM();
+  if (!matrix || !elevationScrubModel?.profile.length) return;
+  const pointer = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
+  const { profile, xScale, yScale, pad, plotWidth, maxDistance } = elevationScrubModel;
+  const chartX = Math.max(pad.left, Math.min(pad.left + plotWidth, pointer.x));
+  const targetDistance = ((chartX - pad.left) / plotWidth) * maxDistance;
+  const point = nearestProfilePoint(profile, targetDistance);
+  if (!point) return;
+
+  const x = xScale(point.distance);
+  const y = yScale(point.altitude);
+  const indicator = svg.querySelector(".elevation-scrub-indicator");
+  const line = indicator?.querySelector("line");
+  const circle = indicator?.querySelector("circle");
+  indicator?.removeAttribute("hidden");
+  line?.setAttribute("x1", x.toFixed(1));
+  line?.setAttribute("x2", x.toFixed(1));
+  circle?.setAttribute("cx", x.toFixed(1));
+  circle?.setAttribute("cy", y.toFixed(1));
+
+  const segment = segmentById.get(point.segmentId);
+  const latLng = segment && pointAlongSegment(segment, point.segmentFraction);
+  if (!latLng) return;
+  const label = `${point.distance.toFixed(1)} km · ${Math.round(point.altitude)} m`;
+  if (!elevationScrubMarker) {
+    elevationScrubMarker = L.circleMarker(latLng, {
+      radius: 8,
+      color: "#ffffff",
+      weight: 3,
+      fillColor: "#d12f83",
+      fillOpacity: 1,
+      interactive: false,
+    })
+      .bindTooltip(label, {
+        permanent: true,
+        direction: "top",
+        offset: [0, -9],
+        opacity: 1,
+        className: "elevation-position-tooltip",
+      })
+      .addTo(map);
+  } else {
+    elevationScrubMarker.setLatLng(latLng);
+    elevationScrubMarker.setTooltipContent(label);
+  }
+}
+
+function clearElevationScrubPreview() {
+  const svg = document.querySelector("#elevationChart");
+  svg?.classList.remove("is-scrubbing");
+  svg?.querySelector(".elevation-scrub-indicator")?.setAttribute("hidden", "");
+  if (elevationScrubMarker) {
+    elevationScrubMarker.remove();
+    elevationScrubMarker = null;
+  }
+}
+
+function nearestProfilePoint(profile, distance) {
+  let low = 0;
+  let high = profile.length - 1;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (profile[middle].distance < distance) low = middle + 1;
+    else high = middle;
+  }
+  const next = profile[low];
+  const previous = profile[Math.max(0, low - 1)];
+  return Math.abs(previous.distance - distance) <= Math.abs(next.distance - distance) ? previous : next;
+}
+
+function pointAlongSegment(segment, fraction) {
+  const points = segment.detail?.levels?.[4] || segment.points;
+  if (!points?.length) return null;
+  if (points.length === 1) return points[0];
+  const targetFraction = Math.max(0, Math.min(1, fraction));
+  let path = elevationScrubPathCache.get(segment);
+  if (!path || path.points !== points) {
+    const lengths = [];
+    let total = 0;
+    for (let index = 1; index < points.length; index += 1) {
+      const length = L.latLng(points[index - 1]).distanceTo(L.latLng(points[index]));
+      lengths.push(length);
+      total += length;
+    }
+    path = { points, lengths, total };
+    elevationScrubPathCache.set(segment, path);
+  }
+  const { lengths, total } = path;
+  if (!total) return points[0];
+  const target = total * targetFraction;
+  let traversed = 0;
+  for (let index = 0; index < lengths.length; index += 1) {
+    if (traversed + lengths[index] >= target) {
+      const edgeFraction = lengths[index] ? (target - traversed) / lengths[index] : 0;
+      return [
+        lerp(points[index][0], points[index + 1][0], edgeFraction),
+        lerp(points[index][1], points[index + 1][1], edgeFraction),
+      ];
+    }
+    traversed += lengths[index];
+  }
+  return points.at(-1);
 }
 
 function generateElevationSamples(segment, startAlt, endAlt) {
@@ -3390,7 +3564,7 @@ async function loadRouteDetails(trailId) {
   if (loadingStatus) loadingStatus.textContent = "Loading detailed GPX…";
   try {
     if (!routeDetailCache.has(trailId)) {
-      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=71`).then(response => {
+      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=72`).then(response => {
         if (!response.ok) throw new Error("GPX detail unavailable");
         return response.json();
       }));
