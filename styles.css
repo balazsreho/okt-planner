@@ -293,6 +293,14 @@ button {
   text-decoration: none;
 }
 
+.leaflet-control-rotate svg path:first-child {
+  fill: #b95358;
+}
+
+.leaflet-control-rotate svg path:last-child {
+  fill: #ebebeb;
+}
+
 .leaflet-control-rotate a:focus-visible {
   outline: 2px solid var(--trail-color);
   outline-offset: -3px;

@@ -284,6 +284,8 @@ function init() {
   const rotateButton = map.getContainer().querySelector(".leaflet-control-rotate a");
   rotateButton?.setAttribute("aria-label", "Reset map to north");
   if (rotateButton) rotateButton.title = "Reset map to north";
+  map.on("rotate", syncMapBearingControl);
+  syncMapBearingControl();
 
   L.control.zoom({ position: "topright" }).addTo(map);
   L.control.attribution({ position: "topright", prefix: false }).addTo(map);
@@ -320,6 +322,12 @@ function init() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+
+function syncMapBearingControl() {
+  const needle = map?.getContainer().querySelector(".leaflet-control-rotate svg");
+  if (!needle || typeof map.getBearing !== "function") return;
+  needle.style.transform = `rotate(${map.getBearing()}deg)`;
 }
 
 function loadAnalyticsConsent() {
@@ -3564,7 +3572,7 @@ async function loadRouteDetails(trailId) {
   if (loadingStatus) loadingStatus.textContent = "Loading detailed GPX…";
   try {
     if (!routeDetailCache.has(trailId)) {
-      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=72`).then(response => {
+      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=73`).then(response => {
         if (!response.ok) throw new Error("GPX detail unavailable");
         return response.json();
       }));
