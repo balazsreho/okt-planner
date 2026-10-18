@@ -3466,12 +3466,22 @@ function refreshHeadingMarker() {
 function loadNavigationSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(navigationSettingsStorageKey));
-    return { location: saved?.location !== false, compass: saved?.compass !== false, compassPrompt: saved?.compassPrompt !== false };
+    const usesPositivePromptSetting = saved?.compassPromptSemantics === "ask";
+    return {
+      location: saved?.location !== false,
+      compass: saved?.compass !== false,
+      compassPrompt: usesPositivePromptSetting ? saved?.compassPrompt !== false : true,
+    };
   } catch { return { location: true, compass: true, compassPrompt: true }; }
 }
 
 function saveNavigationSettings() {
-  try { localStorage.setItem(navigationSettingsStorageKey, JSON.stringify(navigationSettings)); } catch {}
+  try {
+    localStorage.setItem(navigationSettingsStorageKey, JSON.stringify({
+      ...navigationSettings,
+      compassPromptSemantics: "ask",
+    }));
+  } catch {}
   syncNavigationSettings();
 }
 
@@ -3572,7 +3582,7 @@ async function loadRouteDetails(trailId) {
   if (loadingStatus) loadingStatus.textContent = "Loading detailed GPX…";
   try {
     if (!routeDetailCache.has(trailId)) {
-      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=73`).then(response => {
+      if (!routeDetailRequests.has(trailId)) routeDetailRequests.set(trailId, fetch(`./route-details-${trailId}.json?v=74`).then(response => {
         if (!response.ok) throw new Error("GPX detail unavailable");
         return response.json();
       }));
@@ -3610,8 +3620,8 @@ function maybeShowCompassPrompt() {
       locationWatchId === null || compassHeading !== null) return;
   const dialog = document.querySelector("#compassAccessDialog");
   if (!dialog?.showModal || document.querySelector("dialog[open]")) return;
-  const optOut = document.querySelector("#dontAskCompass");
-  if (optOut) optOut.checked = false;
+  const askOnStartup = document.querySelector("#askCompassOnStartup");
+  if (askOnStartup) askOnStartup.checked = navigationSettings.compassPrompt;
   dialog.showModal();
   compassPromptShown = true;
 }
@@ -3623,10 +3633,8 @@ function closeCompassPrompt() {
 
 function initCompassPrompt() {
   const savePromptChoice = () => {
-    if (document.querySelector("#dontAskCompass")?.checked) {
-      navigationSettings.compassPrompt = false;
-      saveNavigationSettings();
-    }
+    navigationSettings.compassPrompt = document.querySelector("#askCompassOnStartup")?.checked !== false;
+    saveNavigationSettings();
     closeCompassPrompt();
   };
   document.querySelector("#approveCompassPrompt")?.addEventListener("click", () => {

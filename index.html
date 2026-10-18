@@ -20,8 +20,8 @@
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       crossorigin=""
     />
-    <link rel="stylesheet" href="./vendor/leaflet-rotate.css?v=73" />
-    <link rel="stylesheet" href="./styles.css?v=73" />
+    <link rel="stylesheet" href="./vendor/leaflet-rotate.css?v=74" />
+    <link rel="stylesheet" href="./styles.css?v=74" />
   </head>
   <body>
     <main class="app-shell">
@@ -275,8 +275,8 @@
 
     <dialog id="compassAccessDialog" class="compass-access-dialog" aria-labelledby="compassAccessTitle" aria-describedby="compassAccessDescription">
       <h2 id="compassAccessTitle">Enable compass?</h2>
-      <p id="compassAccessDescription">Show which way your phone points beside your location. Tap Enable compass, then allow access if your phone asks.</p>
-      <label class="compass-prompt-optout"><input id="dontAskCompass" type="checkbox" /> Don’t ask on startup</label>
+      <p id="compassAccessDescription">Show which way your phone points beside your location. iOS requires a tap before it can provide compass access.</p>
+      <label class="compass-prompt-optout"><input id="askCompassOnStartup" type="checkbox" checked /> Ask again when the app opens</label>
       <div class="compass-prompt-actions">
         <button id="skipCompassPrompt" type="button">Not now</button>
         <button id="approveCompassPrompt" type="button">Enable compass</button>
@@ -308,10 +308,10 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="./vendor/leaflet-rotate.umd.min.js?v=73"></script>
-    <script src="./vendor/qrcode.min.js?v=73"></script>
-    <script src="./trail-route-data.js?v=73"></script>
-    <script src="./route-geometry.js?v=73"></script>
-    <script src="./app.js?v=73"></script>
+    <script src="./vendor/leaflet-rotate.umd.min.js?v=74"></script>
+    <script src="./vendor/qrcode.min.js?v=74"></script>
+    <script src="./trail-route-data.js?v=74"></script>
+    <script src="./route-geometry.js?v=74"></script>
+    <script src="./app.js?v=74"></script>
   </body>
 </html>
